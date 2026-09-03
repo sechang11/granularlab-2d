@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Granular Box — 2D Packing Lab</title>
+<style>
+:root{
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --surface2:#222220;
+  --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+  --accent:#3987e5; --accent2:#d95926; --ok:#3ec98a; --warn:#e0a83c; --bad:#e0574f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5;
+  height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+header{padding:9px 16px;border-bottom:1px solid var(--baseline);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface)}
+header h1{font-size:15px;font-weight:600;letter-spacing:.01em}
+header h1 span{color:var(--accent)}
+header .sp{flex:1}
+header .tag{font-size:11px;color:var(--muted);border:1px solid var(--baseline);
+  padding:2px 8px;border-radius:10px}
+
+#main{flex:1;display:flex;min-height:0}
+#simwrap{flex:1;position:relative;min-width:0;background:#0a0a0a}
+#sim{display:block;width:100%;height:100%}
+#hud{position:absolute;top:10px;left:12px;font-size:12px;color:var(--ink2);
+  background:rgba(10,10,10,.72);border:1px solid var(--border);border-radius:6px;
+  padding:8px 11px;pointer-events:none;line-height:1.7;font-variant-numeric:tabular-nums}
+#hud b{color:var(--ink);font-weight:600}
+#hud .lbl{color:var(--muted)}
+#hWalls{margin-top:6px;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:11.5px}
+#hWalls td{padding:1px 9px 1px 0;white-space:nowrap}
+#hWalls td:nth-child(2),#hWalls td:nth-child(3),#hWalls td:nth-child(4){text-align:right;color:var(--ink)}
+#hWalls tr.sel td{color:var(--accent);font-weight:700}
+#hWalls tr.sel td:first-child::before{content:'\25B8 '}
+#badge{margin-top:5px;display:none;color:var(--ok);font-weight:600;letter-spacing:.04em;font-size:11px}
+#badge.on{display:block}
+#phase{position:absolute;bottom:12px;left:12px;font-size:12px;color:var(--accent);
+  background:rgba(10,10,10,.72);border:1px solid var(--border);border-radius:6px;padding:5px 10px}
+
+#panel{width:330px;flex:0 0 330px;overflow-y:auto;background:var(--surface);
+  border-left:1px solid var(--baseline);padding-bottom:40px}
+.sec{border-bottom:1px solid var(--baseline);padding:12px 14px}
+.sec h2{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:9px}
+.row{display:grid;grid-template-columns:1fr 96px 52px;gap:7px;align-items:center;margin-bottom:7px}
+.row.wide{grid-template-columns:1fr}
+.row label{font-size:12px;color:var(--ink2)}
+.row .val{font-size:11px;color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent);height:18px;cursor:pointer}
+input[type=number],select{background:var(--surface2);color:var(--ink);border:1px solid var(--baseline);
+  border-radius:4px;padding:4px 6px;font:inherit;font-size:12px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+button{font:inherit;font-size:12px;cursor:pointer;background:var(--surface2);color:var(--ink);
+  border:1px solid var(--baseline);border-radius:5px;padding:6px 10px;transition:border-color .15s,background .15s}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover{filter:brightness(1.12)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.btns button{flex:1;min-width:64px}
+
+table.read{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+table.read td{padding:3px 0;border-bottom:1px solid var(--grid)}
+table.read td:last-child{text-align:right;color:var(--ink);font-weight:600}
+table.read td:first-child{color:var(--ink2)}
+table.read tr:last-child td{border-bottom:0}
+td .ok{color:var(--ok)} td .warn{color:var(--warn)} td .bad{color:var(--bad)}
+
+canvas.chart{width:100%;height:auto;display:block;background:#111110;
+  border:1px solid var(--baseline);border-radius:5px;margin-top:8px}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--muted);margin-top:5px;flex-wrap:wrap}
+.legend i{display:inline-block;width:9px;height:2px;vertical-align:middle;margin-right:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Granular Box — <span>2D Packing Lab</span></h1>
+  <span class="tag" id="tagDt">dt —</span>
+  <span class="tag" id="tagRate">— × real time</span>
+  <div class="sp"></div>
+  <span class="tag">Cundall–Strack soft-disk DEM</span>
+</header>
+
+<div id="main">
+  <div id="simwrap">
+    <canvas id="sim"></canvas>
+    <div id="hud">
+      <div><span class="lbl">particles</span> <b id="hN">0</b> &nbsp; <span class="lbl">t</span> <b id="hT">0.00</b> s &nbsp; <b id="hFps"></b></div>
+      <div><span class="lbl">packing φ</span> <b id="hPhi">–</b> &nbsp; <span class="lbl">Z</span> <b id="hZ">–</b> &nbsp; <span class="lbl">Z*</span> <b id="hZs">–</b></div>
+      <div><span class="lbl">KE</span> <b id="hKE">–</b> &nbsp; <span class="lbl">max overlap</span> <b id="hOv">–</b></div>
+      <table id="hWalls">
+        <tr><td class="lbl">wall</td><td class="lbl">position</td><td class="lbl">normal</td><td class="lbl">/ W</td><td class="lbl">shear</td></tr>
+        <tr id="hwX1"><td>X1 left</td><td id="pX1">–</td><td id="fX1">–</td><td id="rX1">–</td><td id="sX1">–</td></tr>
+        <tr id="hwX2"><td>X2 right</td><td id="pX2">–</td><td id="fX2">–</td><td id="rX2">–</td><td id="sX2">–</td></tr>
+        <tr id="hwY1"><td>Y1 floor</td><td id="pY1">–</td><td id="fY1">–</td><td id="rY1">–</td><td id="sY1">–</td></tr>
+        <tr id="hwY2"><td>Y2 lid</td><td id="pY2">–</td><td id="fY2">–</td><td id="rY2">–</td><td id="sY2">–</td></tr>
+        <tr><td class="lbl">weight W</td><td></td><td id="fW">–</td><td></td><td></td></tr>
+        <tr><td class="lbl">X1−X2 imbalance</td><td></td><td id="fImb">–</td><td id="rImb">–</td><td class="lbl" id="fBudget">–</td></tr>
+        <tr><td class="lbl">Σ force residual</td><td></td><td id="fResX">–</td><td id="fResY">–</td><td class="lbl">x , y</td></tr>
+      </table>
+      <div id="badge">✓ NO LOCKED-IN STRESS</div>
+    </div>
+    <div id="phase">idle</div>
+  </div>
+
+  <div id="panel">
+
+    <div class="sec">
+      <h2>Particles</h2>
+      <div class="row"><label>count N</label>
+        <input type="number" id="pN" value="800" min="10" max="20000" step="10"><span class="val"></span></div>
+      <div class="row"><label>mean diameter d (mm)</label>
+        <input type="range" id="pD" min="0.002" max="0.06" step="0.0005" value="0.030"><span class="val" id="pDv">30.0</span></div>
+      <div class="row"><label>dispersity ±x (%)</label>
+        <input type="range" id="pX" min="0" max="40" step="1" value="15"><span class="val" id="pXv">15</span></div>
+      <div class="row"><label>friction μ</label>
+        <input type="range" id="pMu" min="0" max="1" step="0.01" value="0.30"><span class="val" id="pMuv">0.30</span></div>
+      <div class="row"><label>wall friction μ<sub>w</sub></label>
+        <input type="range" id="pMuW" min="0" max="1" step="0.01" value="0"><span class="val" id="pMuWv">0.00</span></div>
+      <div class="row"><label>rolling resistance μ<sub>r</sub></label>
+        <input type="range" id="pMur" min="0" max="0.2" step="0.005" value="0.02"><span class="val" id="pMurv">0.020</span></div>
+      <div class="row"><label>density ρ (kg/m³)</label>
+        <input type="range" id="pRho" min="500" max="5000" step="50" value="2500"><span class="val" id="pRhov">2500</span></div>
+      <div class="hint">Diameters are drawn uniformly from d(1±x). x = 0 gives a monodisperse
+      packing, which crystallises readily; 10–20% suppresses it.
+      <br><br><b>Units.</b> Everything is SI inside (m, kg, N); only the display converts.
+      Grain size reads in <b>mm</b>, the box in <b>cm</b>, forces in N/kN — what a granular
+      experimentalist would actually write down. Note the disks are unit-thickness, so a force
+      here is really force <i>per metre of depth</i> (N/m) and a mass is kg/m; the ratios that
+      matter (bottom/W, K) are dimensionless either way. 30 mm grains are gravel — real bead
+      experiments run 1–3 mm, and the slider now reaches 2 mm.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Contact model</h2>
+      <div class="row"><label>normal spring k<sub>n</sub> (N/m)</label>
+        <input type="range" id="cKn" min="4" max="8" step="0.05" value="6.30"><span class="val" id="cKnv">2.0e6</span></div>
+      <div class="row"><label>tangential k<sub>t</sub> / k<sub>n</sub></label>
+        <input type="range" id="cKt" min="0.05" max="1.5" step="0.05" value="0.80"><span class="val" id="cKtv">0.80</span></div>
+      <div class="row"><label>contact damping ζ</label>
+        <input type="range" id="cZeta" min="0" max="1" step="0.01" value="0.25"><span class="val" id="cZetav">0.25</span></div>
+      <div class="row"><label>velocity damping b (1/s)</label>
+        <input type="range" id="cBv" min="0" max="20" step="0.1" value="2.0"><span class="val" id="cBvv">2.0</span></div>
+      <div class="row"><label>gravity g (m/s²)</label>
+        <input type="range" id="cG" min="0" max="20" step="0.1" value="9.81"><span class="val" id="cGv">9.81</span></div>
+      <div class="hint">ζ is a damping ratio: γ = 2ζ√(m<sub>eff</sub>k). ζ = 0 is perfectly elastic,
+      ζ = 1 critically damped. b is background drag on every particle, independent of contact.
+      <br><br><b>k<sub>n</sub> must grow with bed depth.</b> Basal contact force rises with the
+      weight above it, and overlap is force/k<sub>n</sub> — so a setting that gives 1% overlap at
+      N = 800 gives 7% at N = 8000. Watch the <b>max overlap</b> readout: green under 1%, red over
+      5%. Above ~2% the packing fraction is inflated by interpenetration and Z drifts past its
+      isostatic limit, so raise k<sub>n</sub> until it goes green. The cost is substeps — dt scales
+      as 1/√k<sub>n</sub>.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Box &amp; filling</h2>
+      <div class="row"><label>wall X1 &nbsp;left <span style="color:var(--muted)">cm</span></label>
+        <input type="range" id="wX1" min="-150" max="350" step="0.1" value="0"><span class="val" id="wX1v">0.000</span></div>
+      <div class="row"><label>wall X2 &nbsp;right <span style="color:var(--muted)">cm</span></label>
+        <input type="range" id="wX2" min="-150" max="350" step="0.1" value="82"><span class="val" id="wX2v">0.820</span></div>
+      <div class="row"><label>wall Y1 &nbsp;floor <span style="color:var(--muted)">cm</span></label>
+        <input type="range" id="wY1" min="-150" max="350" step="0.1" value="0"><span class="val" id="wY1v">0.000</span></div>
+      <div class="row"><label>wall Y2 &nbsp;lid <span style="color:var(--muted)">cm</span></label>
+        <input type="range" id="wY2" min="-150" max="350" step="0.1" value="82"><span class="val" id="wY2v">0.820</span></div>
+      <div class="row"><label>box W × H (cm)</label><span></span><span class="val" id="bWH">82.0 × 82.0</span></div>
+      <div class="row"><label>box area (cm²)</label><span></span><span class="val" id="bArea">6724</span></div>
+      <div class="row"><label>selected wall</label><span></span><span class="val" id="bSel">none</span></div>
+      <div class="hint">Drag a wall directly in the view — the cursor changes over one.
+      Moving a wall inward compresses whatever is in the way, so the wall-force panel
+      responds live; that is the quickest way to see locked-in stress appear.</div>
+      <div class="row"><label>target fill φ<sub>box</sub></label>
+        <input type="range" id="bFill" min="0.40" max="0.86" step="0.01" value="0.84"><span class="val" id="bFillv">0.84</span></div>
+      <div class="row wide">
+        <button id="bAuto">Size box so the balls fill it</button></div>
+      <div class="hint" id="capHint"></div>
+      <div class="row wide" style="margin-top:8px">
+        <label style="margin-bottom:4px">filling method</label>
+        <select id="fMethod">
+          <option value="lattice">Lattice release — loosest at ±x, crystallises at ±0</option>
+          <option value="rain" selected>Pluviation, friction on — LOOSE (φ≈0.828)</option>
+          <option value="grow">Grow in place — isotropic (φ≈0.836)</option>
+          <option value="rainSmooth">Pluviation, frictionless — DENSE (φ≈0.845)</option>
+        </select>
+      </div>
+      <div class="row"><label>deposition rate (/s)</label>
+        <input type="range" id="fRate" min="20" max="1200" step="10" value="300"><span class="val" id="fRatev">300</span></div>
+      <div class="hint" id="fHint"></div>
+      <div class="btns">
+        <button class="primary" id="bFill">Fill</button>
+        <button id="bTap">Tap</button>
+        <button id="bUnload">Unload</button>
+        <button id="bClear">Clear</button>
+      </div>
+      <div class="btns">
+        <button id="bPause">❙❙ Pause</button>
+        <button id="bStep">Step</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2>Measurements</h2>
+      <table class="read">
+        <tr><td>particles placed</td><td id="mN">0</td></tr>
+        <tr><td>packing fraction φ</td><td id="mPhi">–</td></tr>
+        <tr><td>coordination Z</td><td id="mZ">–</td></tr>
+        <tr><td>Z* (rattlers excluded)</td><td id="mZs">–</td></tr>
+        <tr><td>rattlers</td><td id="mRat">–</td></tr>
+        <tr><td>bed height</td><td id="mH">–</td></tr>
+        <tr><td>solid area / box area</td><td id="mFill">–</td></tr>
+        <tr><td>grain size achieved</td><td id="mGrain">–</td></tr>
+      </table>
+    </div>
+
+    <div class="sec">
+      <h2>Wall forces</h2>
+      <table class="read">
+        <tr><td>total particle weight W</td><td id="wW">–</td></tr>
+        <tr><td>bottom wall</td><td id="wB">–</td></tr>
+        <tr><td>left wall</td><td id="wL">–</td></tr>
+        <tr><td>right wall</td><td id="wR">–</td></tr>
+        <tr><td>top wall (lid)</td><td id="wT">–</td></tr>
+        <tr><td>bottom / W</td><td id="wBW">–</td></tr>
+        <tr><td>side load (|L|+|R|) / W</td><td id="wSide">–</td></tr>
+        <tr><td>effective K = side·L / (W·H)</td><td id="wK">–</td></tr>
+        <tr><td>locked-in stress (after unload)</td><td id="wLock">–</td></tr>
+      </table>
+      <canvas class="chart" id="chW" width="600" height="200"></canvas>
+      <div class="legend">
+        <span><i style="background:#3987e5"></i>packing φ</span>
+        <span><i style="background:#d95926"></i>side load / W</span>
+      </div>
+      <div class="hint"><b>Why X1 ≠ X2.</b> A frictional floor can hold a horizontal
+      load of up to μ<sub>w</sub>·N, so the two side walls are free to differ by that much and
+      still be in perfect static equilibrium — nothing drives them together. The
+      <b>Σ force residual</b> row is the real equilibrium test: it goes to ~0% when the bed
+      is static, whatever X1−X2 happens to be. To force X1 = X2 exactly, set
+      <b>μ<sub>w</sub> = 0</b> (frictionless walls, frictional grains) — the standard setup
+      for a clean stress measurement, and the default here.
+      <br><br>Two of these are <b>not</b> supposed to be zero. The floor must carry the
+      whole weight (bottom/W → 1), and a bed under gravity always pushes outward — Rankine gives
+      side/W ≈ K·H/L with K ≈ 0.3–0.5, so <b>K</b> is the number to judge, not the raw force.
+      <br><br><b>The real test of minimum wall force is Unload.</b> It sets g = 0. A packing that
+      merely settled goes slack and every wall drops to zero. A packing that was squeezed against
+      the walls keeps pushing — that residue is locked-in stress, and it is the thing worth
+      avoiding.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Display</h2>
+      <div class="row wide">
+        <select id="dColor">
+          <option value="size">colour by size</option>
+          <option value="coord" selected>colour by coordination</option>
+          <option value="speed">colour by speed</option>
+          <option value="force">colour by contact force</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:7px"><label>show rotation marks</label>
+        <input type="checkbox" id="dSpin" checked><span class="val"></span></div>
+      <div class="row"><label>show measurement region</label>
+        <input type="checkbox" id="dRegion"><span class="val"></span></div>
+      <div class="row"><label>show contact network</label>
+        <input type="checkbox" id="dNet"><span class="val"></span></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ===========================================================================
+   GRANULAR BOX — 2D soft-disk DEM
+   ---------------------------------------------------------------------------
+   Contact law: linear Hertz-free spring–dashpot in the normal direction,
+   Cundall–Strack history spring with a Coulomb cap in the tangential.
+
+     normal      f_n = max(0, k_n·δ + γ_n·v_n)          γ_n = 2ζ√(m_eff·k_n)
+     tangential  ξ  += v_t·dt
+                 f_t = −k_t·ξ − γ_t·v_t ,  |f_t| ≤ μ·f_n   (ξ rescaled on slip)
+     torque      τ   = r·f_t          (both partners, same sense)
+
+   Disks are unit-thickness, so m = ρ·πr² and I = ½mr².
+   Integration is semi-implicit (symplectic) Euler; dt is derived from the
+   stiffest contact each time the parameters change.
+   =========================================================================== */
+
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+
+/* ---------------------------------------------------------------- state -- */
+const S = {
+  box:  {x1:0, x2:0.82, y1:0, y2:0.82},  // where the walls ARE (physics reads this)
+  boxT: {x1:0, x2:0.82, y1:0, y2:0.82},  // where the UI has asked them to be
+  drag: null,                 // which wall the pointer is dragging
+  sel: null,                  // which wall is selected for the arrow keys
+  dragFrom: null, dragVal: 0, dragMoved: 0,
+  N: 800, d: 0.030, x: 0.15,  // target count, mean diameter, dispersity
+  mu: 0.30, muW: 0.00, mur: 0.02, rho: 2500,
+  kn: 2.0e4, ktRatio: 0.80, zeta: 0.25, bv: 0.5, g: 9.81,
+  method: 'rain', rate: 300, fillTarget: 0.84,
+
+  P: [],                      // particles
+  dt: 1e-3, sub: 8,
+  t: 0, running: true, phase: 'idle',
+  toPlace: 0, placeAcc: 0,    // deposition queue
+  muActive: 0.30,             // μ in force right now (frictionless fill lowers it)
+  gActive: 9.81,
+  wall: {L:0,R:0,B:0,T:0},    // time-averaged wall normal force (N)
+  shear:{L:0,R:0,B:0,T:0},    // time-averaged wall shear force (N, signed)
+  wallAcc: {L:0,R:0,B:0,T:0}, shearAcc:{L:0,R:0,B:0,T:0}, wallCnt: 0,
+  meas: {phi:0,Z:0,Zs:0,rat:0,h:0,fill:0},
+  phiMC: 0, overlapPct: 0, jammedAt: null,
+  hist: [],                   // {phi, side}
+  colour:'coord', spin:true, region:false, net:false,
+  contacts: [],               // for drawing the force network
+};
+
+/* ------------------------------------------------------- derived numbers -- */
+function radiusDraw(){
+  const r = S.d/2;
+  return r * (1 + (Math.random()*2-1)*S.x);
+}
+/* box extent helpers — the four walls are independent now, so nothing may
+   assume a square or an origin at (0,0) */
+const BW = () => S.box.x2 - S.box.x1;
+const BH = () => S.box.y2 - S.box.y1;
+const BMIN = () => 4*S.d;                       // narrowest useful box
+
+const massOf  = r => S.rho*Math.PI*r*r;         // unit thickness
+const inertOf = (m,r) => 0.5*m*r*r;
+
+/* Regularised sign, for the rolling-resistance switch.
+   A constant-magnitude torque steered by Math.sign(ω) is a non-smooth law: once
+   ω settles near zero the sign flips every timestep and the torque flips with
+   it, so the contact chatters at the Nyquist frequency forever and the bed can
+   never go quiet. Ramping linearly through a small ω_ref makes the torque fall
+   to zero with ω instead of switching across it — inside the band it is simply
+   linear rotational damping, which is what a resting grain should feel. */
+let W_REF = 0.36;                                // rad/s, refreshed by recomputeDt
+const regSign = w => w >  W_REF ?  1
+                   : w < -W_REF ? -1
+                   : w / W_REF;
+
+/* Stable timestep for the lightest particle.
+   TWO contact modes have to be resolved, not one:
+
+     translational   ω² = k_n/m_eff  with m_eff = m/2 for equal disks  →  ω = √(2k_n/m)
+     rotational      ω² = 2k_t(1/mₐ+1/m_b) for disks (I = ½mr²)        →  ω = 2√(k_t/m)
+
+   With k_t/k_n = 0.8 the ROTATIONAL mode is the faster of the two, so sizing dt
+   on the normal spring alone silently under-resolves spin: contacts riding the
+   Coulomb cap flip the friction torque every step and pump angular velocity into
+   a period-2 limit cycle that never settles. Coulomb capping is a stiffer
+   forcing than the linear analysis implies, so the safety factor is generous. */
+function recomputeDt(){
+  const rMin = (S.d/2)*(1-S.x);
+  const mMin = massOf(Math.max(1e-4, rMin));
+  const kt   = S.kn*S.ktRatio;
+  const wTrans = Math.sqrt(2*S.kn/mMin);
+  const wRot   = 2*Math.sqrt(kt/mMin);
+  const wMax   = Math.max(wTrans, wRot);
+  S.dt  = 0.10*(2/wMax);
+  /* rolling-resistance regularisation band: 1% of the angular velocity of a
+     grain rolling at the natural speed sqrt(g*d). Small enough not to soften
+     real rolling, wide enough to stop the sign-flip chatter at rest. */
+  W_REF = 0.01*Math.sqrt(Math.max(S.g,0.01)*S.d)/Math.max(1e-4,S.d/2);
+  S.sub = clamp(Math.round((1/60)/S.dt), 1, 400);
+  const capped = (1/60)/S.dt > 400;
+  $('tagDt').textContent = 'dt ' + S.dt.toExponential(2) + ' s × ' + S.sub + (capped?' (capped)':'');
+}
+
+/* ---------------------------------------------------------------- spatial --
+   Flat counting-sort grid. The old version allocated nx*ny fresh arrays on
+   every call and was called once per substep — roughly 18 million array
+   allocations a second at N = 2000, nearly all of the GC load. This one
+   allocates nothing after warm-up: three Int32Arrays, reused. */
+const GRID = {cell:0, nx:1, ny:1, nc:1, count:null, start:null, items:null, cellOf:null};
+
+function gridBuild(cell){
+  const P = S.P, n = P.length;
+  const bx = S.box;
+  const nx = Math.max(1, Math.ceil(BW()/cell)), ny = Math.max(1, Math.ceil(BH()/cell)), nc = nx*ny;
+  if(!GRID.count || GRID.count.length < nc+1){
+    GRID.count = new Int32Array(nc+1); GRID.start = new Int32Array(nc+1);
+  }
+  if(!GRID.items || GRID.items.length < n){
+    GRID.items = new Int32Array(Math.max(64, n*2));
+    GRID.cellOf = new Int32Array(Math.max(64, n*2));
+  }
+  const cnt = GRID.count, st = GRID.start, items = GRID.items, cellOf = GRID.cellOf;
+  cnt.fill(0, 0, nc+1);
+  for(let i=0;i<n;i++){
+    const p = P[i];
+    const cx = clamp(Math.floor((p.x-bx.x1)/cell), 0, nx-1);
+    const cy = clamp(Math.floor((p.y-bx.y1)/cell), 0, ny-1);
+    const c = cy*nx+cx; cellOf[i] = c; cnt[c]++;
+  }
+  let acc = 0;
+  for(let c=0;c<nc;c++){ st[c] = acc; acc += cnt[c]; }
+  st[nc] = acc;
+  for(let c=0;c<nc;c++) cnt[c] = st[c];          // reuse cnt as a moving cursor
+  for(let i=0;i<n;i++) items[cnt[cellOf[i]]++] = i;
+  GRID.cell = cell; GRID.nx = nx; GRID.ny = ny; GRID.nc = nc;
+}
+
+/* ------------------------------------------------------------ pair list --
+   Verlet neighbour list. Particles move ~0.03% of a diameter per substep, so
+   redoing contact detection every step was pure waste. Pairs within
+   (rᵢ+rⱼ+skin) are listed once and reused until something has moved far enough
+   that the list could be stale — typically 50–200 steps.
+
+   The tangential spring lives in the list (PL.xi[k]) instead of in a Map keyed
+   by "i:j", which removes a string concatenation and a hash lookup per contact
+   per step. Springs are carried across a rebuild so friction history survives. */
+const PL = {i:null, j:null, xi:null, n:0, cap:0, skin:0, ax:null, ay:null,
+            nAt:-1, valid:false, rebuilds:0};
+
+function plEnsure(cap){
+  if(PL.cap >= cap) return;
+  const c = Math.max(1024, cap*2);
+  const ni = new Int32Array(c), nj = new Int32Array(c), nx = new Float64Array(c);
+  if(PL.n){ ni.set(PL.i.subarray(0,PL.n)); nj.set(PL.j.subarray(0,PL.n)); nx.set(PL.xi.subarray(0,PL.n)); }
+  PL.i = ni; PL.j = nj; PL.xi = nx; PL.cap = c;
+}
+
+function plNeedsRebuild(){
+  const P = S.P, n = P.length;
+  if(!PL.valid || PL.nAt !== n) return true;
+  const h2 = 0.25*PL.skin*PL.skin;               // (skin/2)²
+  for(let i=0;i<n;i++){
+    const dx = P[i].x-PL.ax[i], dy = P[i].y-PL.ay[i];
+    if(dx*dx+dy*dy > h2) return true;
+  }
+  return false;
+}
+
+function plRebuild(){
+  const P = S.P, n = P.length;
+  /* carry live springs over the rebuild, keyed on the particle pair */
+  const carry = PL.n ? new Map() : null;
+  if(carry) for(let k=0;k<PL.n;k++) if(PL.xi[k] !== 0) carry.set(PL.i[k]*n + PL.j[k], PL.xi[k]);
+
+  const rMax = (S.d/2)*(1+S.x);
+  PL.skin = 0.25*S.d;
+  gridBuild(2*rMax + PL.skin);
+
+  const nx = GRID.nx, ny = GRID.ny, st = GRID.start, it = GRID.items;
+  PL.n = 0;
+  plEnsure(Math.max(256, n*8));
+
+  for(let cy=0; cy<ny; cy++) for(let cx=0; cx<nx; cx++){
+    const c = cy*nx+cx;
+    if(st[c] === st[c+1]) continue;
+    for(let oy=0; oy<=1; oy++) for(let ox=(oy===0?0:-1); ox<=1; ox++){
+      const gx = cx+ox, gy = cy+oy;
+      if(gx<0||gx>=nx||gy<0||gy>=ny) continue;
+      const c2 = gy*nx+gx, same = (ox===0&&oy===0);
+      for(let a=st[c]; a<st[c+1]; a++){
+        const i = it[a], pi = P[i];
+        const b0 = same ? a+1 : st[c2];
+        for(let b=b0; b<st[c2+1]; b++){
+          const j = it[b];
+          if(i === j) continue;
+          const pj = P[j];
+          const dx = pj.x-pi.x, dy = pj.y-pi.y;
+          const rr = pi.r+pj.r+PL.skin;
+          if(dx*dx+dy*dy > rr*rr) continue;
+          if(PL.n >= PL.cap) plEnsure(PL.n+1);
+          const ii = i<j?i:j, jj = i<j?j:i;
+          PL.i[PL.n] = ii; PL.j[PL.n] = jj;
+          PL.xi[PL.n] = carry ? (carry.get(ii*n+jj) || 0) : 0;
+          PL.n++;
+        }
+      }
+    }
+  }
+  if(!PL.ax || PL.ax.length < n){
+    PL.ax = new Float64Array(Math.max(64,n*2));
+    PL.ay = new Float64Array(Math.max(64,n*2));
+  }
+  for(let i=0;i<n;i++){ PL.ax[i] = P[i].x; PL.ay[i] = P[i].y; }
+  PL.nAt = n; PL.valid = true; PL.rebuilds++;
+}
+
+/* wall tangential springs: 4 per particle (L,R,B,T), no Map, no string keys */
+let WXI = new Float64Array(0);
+function wxiEnsure(n){
+  if(WXI.length >= 4*n) return;
+  const w = new Float64Array(Math.max(256, 8*n));
+  w.set(WXI); WXI = w;
+}
+
+/* A wall SWEEPS; it never teleports.
+   Moving a wall straight to wherever the pointer went leaves every particle it
+   passed suddenly buried metres-deep inside it. The contact spring sees that as
+   an enormous overlap and fires the particle out at tens of m/s — measured 39 m/s
+   for a 20 cm jump — which looks exactly like balls shooting through the wall.
+   The UI writes a TARGET; the wall closes on it at a bounded speed, so it pushes
+   particles ahead of it the way a real piston would. A 20 cm move takes ~0.4 s
+   of simulated time instead of one step, and nothing ever ends up deeply buried. */
+const WALL_VMAX = 0.5;                    // m/s of wall travel
+function advanceWalls(dt){
+  const b = S.box, t = S.boxT, m = WALL_VMAX*dt;
+  for(let k=0;k<4;k++){
+    const key = ['x1','x2','y1','y2'][k];
+    const d = t[key]-b[key];
+    if(d === 0) continue;
+    b[key] += (Math.abs(d) <= m) ? d : (d>0 ? m : -m);
+    PL.valid = false;                     // box moved: neighbour ranges are stale
+  }
+}
+
+/* ================================ physics ================================ */
+function step(dt){
+  advanceWalls(dt);
+  const P = S.P, n = P.length;
+  if(!n){ S.t += dt; return; }
+  if(plNeedsRebuild()) plRebuild();
+  wxiEnsure(n);
+
+  const kt = S.kn*S.ktRatio;
+  const bx = S.box;
+  for(let i=0;i<n;i++){
+    const p = P[i];
+    p.fx = -S.bv*p.m*p.vx;
+    p.fy = -S.bv*p.m*p.vy - p.m*S.gActive;
+    p.tq = -S.bv*p.I*p.w;
+    p.nc = 0; p.fsum = 0;
+  }
+
+  if(S.net) S.contacts.length = 0;
+
+  for(let k=0; k<PL.n; k++) resolvePair(k, kt, dt);
+
+  for(let i=0;i<n;i++){
+    const p = P[i];
+    wallContact(i, 1, 0,  p.r - (p.x-bx.x1), 4*i,   kt, dt, 'L');
+    wallContact(i,-1, 0,  p.r - (bx.x2-p.x), 4*i+1, kt, dt, 'R');
+    wallContact(i, 0, 1,  p.r - (p.y-bx.y1), 4*i+2, kt, dt, 'B');
+    wallContact(i, 0,-1,  p.r - (bx.y2-p.y), 4*i+3, kt, dt, 'T');
+  }
+
+  /* ---- integrate (semi-implicit Euler) ---- */
+  for(let i=0;i<n;i++){
+    const p = P[i];
+    p.vx += p.fx/p.m*dt;  p.vy += p.fy/p.m*dt;  p.w += p.tq/p.I*dt;
+    p.x  += p.vx*dt;      p.y  += p.vy*dt;      p.th += p.w*dt;
+    /* Escape backstop — CENTRES only.
+       Clamping to y = r (the touching position) would zero the wall overlap and
+       the spring would never engage: the wall force would read exactly zero no
+       matter how much weight sat on it. Constrain the centre to the box instead,
+       which still makes tunnelling impossible but leaves the overlap — and
+       therefore the contact force — entirely to the soft-wall contact law. */
+    if(p.x < bx.x1){ p.x = bx.x1; if(p.vx<0) p.vx = 0; }
+    if(p.x > bx.x2){ p.x = bx.x2; if(p.vx>0) p.vx = 0; }
+    if(p.y < bx.y1){ p.y = bx.y1; if(p.vy<0) p.vy = 0; }
+    if(p.y > bx.y2){ p.y = bx.y2; if(p.vy>0) p.vy = 0; }
+  }
+  S.wallCnt++;
+  S.t += dt;
+}
+
+function resolvePair(k, kt, dt){
+  const P = S.P, i = PL.i[k], j = PL.j[k];
+  const a = P[i], b = P[j];
+  const dx = b.x-a.x, dy = b.y-a.y;
+  const sum = a.r+b.r, d2 = dx*dx+dy*dy;
+  if(d2 >= sum*sum || d2 < 1e-24){ PL.xi[k] = 0; return; }   // listed but not touching
+
+  const dist = Math.sqrt(d2);
+  const delta = sum-dist;
+  const nx = dx/dist, ny = dy/dist;       // a → b
+  const tx = -ny,     ty = nx;
+
+  const ws  = a.w*a.r + b.w*b.r;
+  const vrx = a.vx - b.vx - ws*ny;
+  const vry = a.vy - b.vy + ws*nx;
+  const vn  = vrx*nx + vry*ny;            // > 0 ⇒ approaching
+  const vt  = vrx*tx + vry*ty;
+
+  const meff = a.m*b.m/(a.m+b.m);
+  const rk = Math.sqrt(meff), z2 = 2*S.zeta;
+  const gn = z2*rk*Math.sqrt(S.kn);
+  const gt = z2*rk*Math.sqrt(kt);
+
+  let fn = S.kn*delta + gn*vn;
+  if(fn < 0) fn = 0;                      // contacts never pull
+
+  let xi = PL.xi[k] + vt*dt;
+  let ft = -kt*xi - gt*vt;
+  const fmax = S.muActive*fn;
+  if(ft > fmax || ft < -fmax){            // Coulomb slip: cap and rescale
+    ft = ft > 0 ? fmax : -fmax;
+    xi = kt>0 ? -(ft + gt*vt)/kt : 0;
+  }
+  PL.xi[k] = xi;
+
+  const Fx = -fn*nx + ft*tx, Fy = -fn*ny + ft*ty;
+  a.fx += Fx;  a.fy += Fy;  a.tq += a.r*ft;
+  b.fx -= Fx;  b.fy -= Fy;  b.tq += b.r*ft;
+  a.nc++; b.nc++;
+  a.fsum += fn; b.fsum += fn;
+
+  /* rolling resistance: an opposing torque scaled by the normal load. Perfect
+     disks have nothing to stop them rolling, so without this a settled bed
+     keeps creeping. Real grains are not circles; μ_r stands in for that.
+     regSign, not Math.sign — see the note on regSign above. */
+  if(S.mur > 0){
+    const wRel = a.w - b.w;
+    if(wRel !== 0){
+      const tr = S.mur*fn*(a.r*b.r/(a.r+b.r))*regSign(wRel);
+      a.tq -= tr;  b.tq += tr;
+    }
+  }
+  if(S.net) S.contacts.push(a.x,a.y,b.x,b.y,fn);
+}
+
+/* inward normal (inx,iny); delta>0 means the disk has penetrated that wall.
+   wxi is the index of this wall's tangential spring in WXI. */
+function wallContact(i, inx, iny, delta, wxi, kt, dt, tagW){
+  if(delta <= 0){ WXI[wxi] = 0; return; }
+  const p = S.P[i];
+  const nx = -inx, ny = -iny;             // particle → wall
+  const tx = -ny,  ty = nx;
+
+  const vcx = p.vx - p.w*p.r*ny;
+  const vcy = p.vy + p.w*p.r*nx;
+  const vn  = vcx*nx + vcy*ny;
+  const vt  = vcx*tx + vcy*ty;
+
+  const rk = Math.sqrt(p.m), z2 = 2*S.zeta;
+  const gn = z2*rk*Math.sqrt(S.kn);
+  const gt = z2*rk*Math.sqrt(kt);
+
+  let fn = S.kn*delta + gn*vn;
+  if(fn < 0) fn = 0;
+
+  let xi = WXI[wxi] + vt*dt;
+  let ft = -kt*xi - gt*vt;
+  /* Walls carry their OWN friction coefficient. A frictional floor can absorb a
+     horizontal imbalance of up to μ_w·N, which is precisely why the two side
+     walls need not read the same normal force — see the balance rows in the HUD.
+     Setting μ_w = 0 removes that freedom and forces X1 == X2 exactly. */
+  const fmax = S.muW*fn;
+  if(ft > fmax || ft < -fmax){ ft = ft>0?fmax:-fmax; xi = kt>0 ? -(ft + gt*vt)/kt : 0; }
+  WXI[wxi] = xi;
+
+  p.fx += -fn*nx + ft*tx;
+  p.fy += -fn*ny + ft*ty;
+  p.tq += p.r*ft;
+  if(S.mur > 0 && p.w !== 0) p.tq -= S.mur*fn*p.r*regSign(p.w);
+  p.fsum += fn;
+  S.wallAcc[tagW] += fn;
+  S.shearAcc[tagW] += ft;          // signed, for the force-balance check
+}
+
+/* ============================== filling =================================== */
+function clearAll(){
+  S.P.length = 0; S.contacts.length = 0;
+  for(const k of ['x1','x2','y1','y2']) S.box[k] = S.boxT[k];   // empty box: no need to sweep
+  PL.n = 0; PL.valid = false; PL.nAt = -1; WXI = new Float64Array(0);
+  S.t = 0; S.toPlace = 0; S.placeAcc = 0;
+  S.phiMC = 0; S.overlapPct = 0; S.lockIn = undefined; S.jammedAt = null;
+  S.muActive = S.mu; S.gActive = S.g;
+  S.phase = 'idle'; S.hist.length = 0;
+  resetWallAvg(); measure(); paintReadouts();
+}
+function resetWallAvg(){ S.wallAcc = {L:0,R:0,B:0,T:0}; S.shearAcc = {L:0,R:0,B:0,T:0}; S.wallCnt = 0; }
+
+function makeParticle(x, y, r){
+  const m = massOf(r);
+  return {x, y, r, m, I: inertOf(m,r), vx:0, vy:0, w:0, th:Math.random()*6.283,
+          fx:0, fy:0, tq:0, nc:0, fsum:0};
+}
+
+/* is there room for a disk of radius r centred at (x,y)? */
+function roomFor(x, y, r, slack){
+  const bx = S.box;
+  if(x < bx.x1+r || x > bx.x2-r || y < bx.y1+r || y > bx.y2-r) return false;
+  const s = slack===undefined ? 0 : slack;
+  for(const q of S.P){
+    const dx = q.x-x, dy = q.y-y, rr = q.r+r-s;
+    if(dx*dx+dy*dy < rr*rr) return false;
+  }
+  return true;
+}
+
+/* ---- how much this box can actually hold -----------------------------------
+   φ = 0.87 is about the ceiling for disks in 2D (hexagonal is 0.9069, and no
+   random fill reaches it). Past this the box physically cannot take the balls,
+   and every filling method fails in its own quiet way — see fillCapacityNote. */
+const PHI_MAX = 0.87;
+const grainArea = () => Math.PI*Math.pow(S.d/2,2)*(1+S.x*S.x/3);   // mean disk area
+const capacityN = () => Math.floor(PHI_MAX*BW()*BH()/Math.max(1e-12, grainArea()));
+/* the side length at which N balls fill the box to the target fraction */
+const sizeForN = (phi) => Math.sqrt(S.N*grainArea()/Math.max(0.05, phi));
+
+/* Pluviation needs somewhere to rain FROM. If the settled bed will reach the
+   lid there is no free space above it, and deposition simply jams — that is
+   physics, not a limitation here. Grow and lattice place particles throughout
+   the box and do not care. */
+const needsHeadroom = m => (m === 'rain' || m === 'rainSmooth');
+
+function fillCapacityNote(){
+  const cap = capacityN(), m = $('fMethod').value;
+  const bedPhi = S.N*grainArea()/Math.max(1e-9, BW()*BH());
+  let t = 'This box holds about <b>'+cap+'</b> balls at φ = 0.87. '+
+          'N = '+S.N+' would fill it to <b>'+(100*bedPhi).toFixed(0)+'%</b> of its area.';
+  if(S.N > cap) t += ' <b style="color:var(--bad)">Over capacity — filling will be refused.</b>';
+  else if(needsHeadroom(m) && bedPhi > 0.70)
+    t += ' <b style="color:var(--warn)">Pluviation needs free space above the bed;'+
+         ' at this fill it will jam. Use Grow in place or Lattice release.</b>';
+  if(bedPhi > 0.80) t += ' <b>Note:</b> a box the balls exactly fill is a box they are '+
+    'pressed into — you cannot have zero dead space AND zero wall force. Check '+
+    '<b>locked-in stress</b> after Unload.';
+  $('capHint').innerHTML = t;
+}
+
+function startFill(){
+  const cap = capacityN();
+  if(S.N > cap){
+    S.phase = 'refused';
+    fillCapacityNote();
+    return;                                  // refuse rather than make nonsense
+  }
+  clearAll();
+  S.method = $('fMethod').value;
+  S.phase = 'filling';
+
+  if(S.method === 'lattice'){
+    /* triangular lattice, jittered, released at once — settles dense & ordered */
+    const rMax = (S.d/2)*(1+S.x);
+    const bx = S.box;
+    const cols = Math.max(1, Math.floor((BW() - 2*rMax)/(2*rMax*1.06)));
+    const rows = Math.ceil(S.N/cols);
+    /* pitch the rows so all N fit between the floor and the lid, however many
+       rows that takes — a fixed pitch silently drops the overflow */
+    const rowGap = Math.min(2*rMax*0.92, (BH() - 2*rMax)/Math.max(1,rows-1||1));
+    const colPitch = (BW() - 2*rMax)/cols;
+    let placed = 0;
+    for(let row=0; row<rows && placed<S.N; row++){
+      const y = bx.y2 - rMax - 0.004 - row*rowGap;
+      const off = (row%2)*colPitch*0.5;
+      for(let c=0; c<cols && placed<S.N; c++){
+        const r = radiusDraw();
+        const x = bx.x1 + rMax + off + c*colPitch;
+        S.P.push(makeParticle(
+          clamp(x + (Math.random()-0.5)*colPitch*0.06, bx.x1+r, bx.x2-r),
+          clamp(y + (Math.random()-0.5)*rowGap*0.06,   bx.y1+r, bx.y2-r), r));
+        placed++;
+      }
+    }
+    S.toPlace = 0;
+    S.muActive = S.mu;
+    S.phase = 'settling';
+
+  } else if(S.method === 'grow'){
+    /* scatter seeds at reduced radius throughout the box, then inflate them.
+       Growth against the DEM springs pushes the packing to a very dense,
+       isotropic state with no deposition direction. */
+    const rT = [];
+    let tries = 0;
+    while(rT.length < S.N && tries < S.N*400){
+      tries++;
+      const r = radiusDraw();
+      const rs = r*0.35;
+      const bx = S.box;
+      const x = bx.x1+rs + Math.random()*(BW()-2*rs), y = bx.y1+rs + Math.random()*(BH()-2*rs);
+      if(roomFor(x,y,rs,0)){ const p = makeParticle(x,y,rs); p.rTarget = r; S.P.push(p); rT.push(r); }
+    }
+    /* Frictionless while inflating, but gravity STAYS ON. Growing in free fall
+       makes an isotropic packing that then collapses into a bed the moment
+       gravity returns, losing exactly the density the method was for. Growing
+       under load lets the bed densify in place instead. */
+    S.muActive = 0;
+    S.gActive = S.g;
+    S.phase = 'growing';
+
+  } else {
+    /* pluviation: release particles near the top, a few per frame */
+    S.toPlace = S.N;
+    S.muActive = (S.method === 'rainSmooth') ? 0 : S.mu;
+    S.gActive = S.g;
+  }
+  updateHint();
+}
+
+function depositTick(dtFrame){
+  if(S.toPlace <= 0) return;
+  S.placeAcc += S.rate*dtFrame;
+  let budget = Math.floor(S.placeAcc);
+  if(budget <= 0) return;
+  S.placeAcc -= budget;
+
+  const rMax = (S.d/2)*(1+S.x);
+  while(budget-- > 0 && S.toPlace > 0){
+    let ok = false;
+    for(let attempt=0; attempt<24 && !ok; attempt++){
+      const r = radiusDraw();
+      const bx = S.box;
+      const x = bx.x1+r + Math.random()*(BW()-2*r);
+      const y = bx.y2 - r - 0.004 - Math.random()*rMax*1.5;
+      if(roomFor(x,y,r,0)){
+        const p = makeParticle(x,y,r);
+        p.vy = -0.05;
+        S.P.push(p); S.toPlace--; ok = true;
+      }
+    }
+    if(!ok){ S._stall = (S._stall||0)+1; break; }   // top congested; wait for it to drain
+    S._stall = 0;
+  }
+  /* A jam is not a pause. If nothing has gone in for a while the bed has reached
+     the lid and never will take the rest, so say so instead of sitting on
+     "depositing…" forever with a frozen counter. */
+  if((S._stall||0) > 120){
+    S.phase = 'jammed';
+    S._stall = 0;
+  }
+  if(S.toPlace <= 0){ S.phase = 'settling'; S._stall = 0; }
+}
+
+function growTick(dtFrame){
+  /* Stop at JAMMING, not at the nominal radius.
+     Inflating every disk to rTarget regardless of whether the box can take them
+     drives the surplus into elastic compression: the packing ends up crushed
+     against its own walls, reading 450% of its weight in locked-in stress and a
+     packing fraction inflated by interpenetration. Real inflation schemes
+     (Lubachevsky–Stillinger and friends) grow until the assembly jams and then
+     stop, which is what a box "filled" with grains actually looks like.
+
+     A hard stop at first contact is far too eager — one transient collision while
+     the bed is still settling halts growth at 40% of target and leaves the box
+     mostly empty. Instead the growth rate is braked smoothly as contacts tighten,
+     which gives the packing time to rearrange, and only a sustained deep overlap
+     counts as a real jam. */
+  const ov = maxOverlapPct();             // % of a diameter
+  S._jamT = ov > 2.5 ? (S._jamT||0)+1 : 0;
+  if(S._jamT > 12){                       // deep overlap that will not relax away
+    S.jammedAt = S.P.length ? S.P.reduce((s,p)=>s+p.r,0)/S.P.length : 0;
+    S._jamT = 0; S.gActive = S.g; S.phase = 'settling';
+    return;
+  }
+  let done = true;
+  /* brake from full speed at 0.5% overlap down to 4% speed at 2.5% */
+  const brake = ov > 0.5 ? Math.max(0.04, 1-(ov-0.5)/2.0) : 1;
+  const rate = dtFrame*0.55*brake;        // fraction of target radius per second
+  for(const p of S.P){
+    if(p.rTarget === undefined) continue;
+    if(p.r < p.rTarget){
+      p.r = Math.min(p.rTarget, p.r + p.rTarget*rate);
+      p.m = massOf(p.r); p.I = inertOf(p.m, p.r);
+      done = false; PL.valid = false;   // radii changed: neighbour ranges are stale
+    }
+  }
+  if(done){
+    S.jammedAt = null;                    // reached full size with room to spare
+    S.gActive = S.g;
+    S.phase = 'settling';                 // settleTick restores μ once it is calm
+  }
+}
+
+function settleTick(){
+  /* frictionless deposition earns its density; friction is restored once the bed
+     is nearly still, so the packing is finally measured with the μ that was asked
+     for and the contacts it reports are real frictional contacts */
+  if(S.muActive !== S.mu){
+    const vRef = Math.sqrt(Math.max(S.g,0.01)*S.d);
+    let vmax = 0;
+    for(const p of S.P) vmax = Math.max(vmax, Math.hypot(p.vx,p.vy));
+    if(vmax < 0.02*vRef) S.muActive = S.mu;
+  }
+  if(isQuiet() && S.muActive === S.mu){
+    S.phase = 'settled';
+    resetWallAvg();      // discard the deposition transient: report equilibrium only
+  }
+}
+
+function tap(){
+  const v = 0.35 + 0.25*Math.random();
+  for(const p of S.P){
+    p.vy += v;
+    p.vx += (Math.random()-0.5)*v*0.12;
+  }
+  S.phase = 'settling';
+}
+
+function unload(){
+  S.gActive = 0;
+  S.lockIn = undefined;
+  resetWallAvg();     // measure the residue, not the loaded history
+  S.phase = 'unloading';
+}
+
+const totalWeight   = () => S.P.reduce((s,p)=>s+p.m,0)*S.g;
+const kineticEnergy = () => S.P.reduce((s,p)=>s+0.5*p.m*(p.vx*p.vx+p.vy*p.vy)+0.5*p.I*p.w*p.w,0);
+
+/* "Quiet" has to be judged against a velocity scale, not an absolute energy —
+   otherwise the threshold moves with N, ρ and d. √(g·d) is the natural one:
+   the speed a grain picks up falling its own diameter. */
+function isQuiet(){
+  if(!S.P.length) return false;
+  const vRef = Math.sqrt(Math.max(S.g,0.01)*S.d);
+  let vmax = 0;
+  for(const p of S.P){
+    const v = Math.hypot(p.vx,p.vy) + Math.abs(p.w)*p.r;
+    if(v > vmax) vmax = v;
+  }
+  return vmax < 5e-3*vRef;   // 0.5% of √(g·d): still a strict bar for DEM
+}
+
+/* ============================ measurement ================================= */
+function measure(){
+  const P = S.P, n = P.length;
+  if(!n){ S.meas = {phi:0,Z:0,Zs:0,rat:0,h:0,fill:0}; return; }
+
+  /* bed surface: 95th percentile of particle tops */
+  const tops = P.map(p=>p.y+p.r).sort((a,b)=>a-b);
+  const hTop = tops[Math.min(n-1, Math.floor(0.95*n))];
+
+  /* interior region, 1.5 mean diameters clear of every boundary */
+  const m = 1.5*S.d;
+  const bx = S.box;
+  const x0 = bx.x1+m, x1 = bx.x2-m, y0 = bx.y1+m, y1 = hTop-m;
+  let cnt = 0, zc = 0, rat = 0, zcNR = 0, cntNR = 0;
+  if(x1>x0 && y1>y0){
+    for(const p of P){
+      if(p.x<x0||p.x>x1||p.y<y0||p.y>y1) continue;
+      cnt++; zc += p.nc;
+      if(p.nc < 2){ rat++; } else { zcNR += p.nc; cntNR++; }
+    }
+  }
+  const solid = P.reduce((s,p)=>s+Math.PI*p.r*p.r,0);
+  S.meas = {
+    phi:  S.phiMC,                       // sampled separately, see samplePhi()
+    Z:    cnt ? zc/cnt : 0,
+    Zs:   cntNR ? zcNR/cntNR : 0,
+    rat:  cnt ? rat/cnt : 0,
+    h:    hTop,
+    fill: solid/Math.max(1e-9, BW()*BH()),
+    cnt, region:{x0,x1,y0,y1}
+  };
+}
+
+/* Packing fraction by Monte Carlo point sampling.
+   Summing πr² over the region is wrong the moment particles overlap — shared
+   area gets counted twice and φ can exceed 1. Sampling asks the only question
+   that matters, "is this point inside any disk?", so overlap is counted once
+   and the result is bounded by construction. ~0.3% s.e. at M = 24000. */
+function samplePhi(M){
+  const P = S.P;
+  if(!P.length){ S.phiMC = 0; return; }
+  const R = S.meas.region;
+  if(!R || R.x1<=R.x0 || R.y1<=R.y0){ S.phiMC = 0; return; }
+
+  const cell = S.d*(1+S.x)*1.05;
+  const bxs = S.box;
+  const nx = Math.max(1,Math.ceil(BW()/cell)), ny = Math.max(1,Math.ceil(BH()/cell));
+  const bins = new Array(nx*ny);
+  for(let i=0;i<bins.length;i++) bins[i] = [];
+  for(const p of P){
+    const cx = clamp(Math.floor((p.x-bxs.x1)/cell),0,nx-1), cy = clamp(Math.floor((p.y-bxs.y1)/cell),0,ny-1);
+    bins[cy*nx+cx].push(p);
+  }
+
+  let hit = 0;
+  for(let s=0;s<M;s++){
+    const x = R.x0 + Math.random()*(R.x1-R.x0);
+    const y = R.y0 + Math.random()*(R.y1-R.y0);
+    const cx = clamp(Math.floor((x-bxs.x1)/cell),0,nx-1), cy = clamp(Math.floor((y-bxs.y1)/cell),0,ny-1);
+    let inside = false;
+    for(let oy=-1;oy<=1 && !inside;oy++) for(let ox=-1;ox<=1 && !inside;ox++){
+      const gx=cx+ox, gy=cy+oy;
+      if(gx<0||gx>=nx||gy<0||gy>=ny) continue;
+      for(const p of bins[gy*nx+gx]){
+        const dx=p.x-x, dy=p.y-y;
+        if(dx*dx+dy*dy <= p.r*p.r){ inside = true; break; }
+      }
+    }
+    if(inside) hit++;
+  }
+  S.phiMC = hit/M;
+}
+
+function flushWallAvg(){
+  if(!S.wallCnt) return;
+  const k = 1/S.wallCnt;
+  S.wall  = {L:S.wallAcc.L*k,  R:S.wallAcc.R*k,  B:S.wallAcc.B*k,  T:S.wallAcc.T*k};
+  S.shear = {L:S.shearAcc.L*k, R:S.shearAcc.R*k, B:S.shearAcc.B*k, T:S.shearAcc.T*k};
+  resetWallAvg();
+}
+
+/* ============================== rendering ================================= */
+const cv = $('sim'), ctx = cv.getContext('2d');
+let VW=0, VH=0, sc=1, ox=0, oy=0;
+
+function resize(){
+  const r = cv.parentElement.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  cv.width = Math.max(1,Math.round(r.width*dpr));
+  cv.height = Math.max(1,Math.round(r.height*dpr));
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  VW = r.width; VH = r.height;
+}
+function fit(){
+  const pad = 26;
+  const w = Math.max(1e-6, BW()), h = Math.max(1e-6, BH());
+  sc = Math.min((VW-2*pad)/w, (VH-2*pad)/h);
+  ox = (VW - w*sc)/2 - S.box.x1*sc;
+  oy = (VH + h*sc)/2 + S.box.y1*sc;   // y flipped: world y up, screen y down
+}
+const SX = x => ox + x*sc;
+const SY = y => oy - y*sc;
+const WX = px => (px - ox)/sc;   // screen → world
+const WY = py => (oy - py)/sc;
+
+function hsl(h,s,l){ return 'hsl('+h+','+s+'%,'+l+'%)'; }
+function colourOf(p, vmax, fmax){
+  if(S.colour==='size'){
+    const t = clamp((p.r/(S.d/2)-(1-S.x))/(2*S.x+1e-9),0,1);
+    return hsl(210-150*t, 62, 42+22*t);
+  }
+  if(S.colour==='speed'){
+    const t = clamp(Math.hypot(p.vx,p.vy)/(vmax||1),0,1);
+    return hsl(215-215*t, 70, 32+34*t);
+  }
+  if(S.colour==='force'){
+    const t = clamp(p.fsum/(fmax||1),0,1);
+    return hsl(220-220*t, 68, 30+38*t);
+  }
+  const t = clamp(p.nc/6,0,1);        // coordination
+  return t<0.02 ? '#4a4a46' : hsl(200-160*t, 60, 34+26*t);
+}
+
+function draw(){
+  ctx.clearRect(0,0,VW,VH);
+  fit();
+
+  /* box */
+  ctx.save();
+  const b = S.box;
+  ctx.strokeStyle = css('--baseline'); ctx.lineWidth = 2;
+  ctx.strokeRect(SX(b.x1), SY(b.y2), BW()*sc, BH()*sc);
+  /* name every wall in the view, outside its own line */
+  ctx.save();
+  ctx.font = '600 12px system-ui, sans-serif';
+  const lab = (txt, x, y, ax, ay, on) => {
+    ctx.fillStyle = on ? css('--accent') : css('--muted');
+    ctx.textAlign = ax; ctx.textBaseline = ay;
+    ctx.fillText(txt, x, y);
+  };
+  const midY = (SY(b.y1)+SY(b.y2))/2, midX = (SX(b.x1)+SX(b.x2))/2;
+  const selOrDrag = k => (S.sel===k || S.drag===k);
+  lab('X1',  SX(b.x1)-7, midY,       'right',  'middle', selOrDrag('x1'));
+  lab('X2',  SX(b.x2)+7, midY,       'left',   'middle', selOrDrag('x2'));
+  lab('Y1',  midX,       SY(b.y1)+8, 'center', 'top',    selOrDrag('y1'));
+  lab('Y2',  midX,       SY(b.y2)-8, 'center', 'bottom', selOrDrag('y2'));
+  ctx.restore();
+
+  const hot = S.drag || S.sel;                  // light up dragged / selected wall
+  if(hot){
+    ctx.strokeStyle = css('--accent'); ctx.lineWidth = S.drag ? 3.5 : 2.5;
+    if(!S.drag) ctx.setLineDash([9,5]);
+    ctx.beginPath();
+    if(hot==='x1'||hot==='x2'){
+      const x = SX(hot==='x1'? b.x1 : b.x2);
+      ctx.moveTo(x, SY(b.y1)); ctx.lineTo(x, SY(b.y2));
+    } else {
+      const y = SY(hot==='y1'? b.y1 : b.y2);
+      ctx.moveTo(SX(b.x1), y); ctx.lineTo(SX(b.x2), y);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+
+  /* measurement region */
+  const RG = S.meas.region;
+  if(S.region && RG && RG.x1>RG.x0 && RG.y1>RG.y0){
+    ctx.save();
+    ctx.strokeStyle = 'rgba(57,135,229,.55)'; ctx.setLineDash([5,4]); ctx.lineWidth = 1;
+    ctx.strokeRect(SX(RG.x0), SY(RG.y1), (RG.x1-RG.x0)*sc, (RG.y1-RG.y0)*sc);
+    ctx.restore();
+  }
+
+  let vmax = 1e-9, fmax = 1e-9;
+  for(const p of S.P){
+    const v = Math.hypot(p.vx,p.vy); if(v>vmax) vmax = v;
+    if(p.fsum>fmax) fmax = p.fsum;
+  }
+
+  /* contact network */
+  if(S.net && S.contacts.length){
+    ctx.save(); ctx.strokeStyle = 'rgba(217,89,38,.55)';
+    let mx = 1e-9;
+    for(let i=4;i<S.contacts.length;i+=5) if(S.contacts[i]>mx) mx = S.contacts[i];
+    for(let i=0;i<S.contacts.length;i+=5){
+      ctx.lineWidth = 0.4 + 2.6*(S.contacts[i+4]/mx);
+      ctx.beginPath();
+      ctx.moveTo(SX(S.contacts[i]),  SY(S.contacts[i+1]));
+      ctx.lineTo(SX(S.contacts[i+2]),SY(S.contacts[i+3]));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* disks */
+  const showEdge = S.P.length < 1600;
+  for(const p of S.P){
+    const R = p.r*sc;
+    ctx.beginPath();
+    ctx.arc(SX(p.x), SY(p.y), R, 0, 6.2832);
+    ctx.fillStyle = colourOf(p, vmax, fmax);
+    ctx.fill();
+    if(showEdge && R>2.2){
+      ctx.strokeStyle = 'rgba(0,0,0,.42)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    if(S.spin && R>3.4){
+      ctx.beginPath();
+      ctx.moveTo(SX(p.x), SY(p.y));
+      ctx.lineTo(SX(p.x)+Math.cos(p.th)*R*0.86, SY(p.y)-Math.sin(p.th)*R*0.86);
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+}
+
+/* --------------------------------------------------------------- chart --- */
+function drawChart(){
+  const c = $('chW'), g = c.getContext('2d');
+  const W = c.width, H = c.height, L = 34, R = 8, T = 8, B = 20;
+  g.clearRect(0,0,W,H);
+  g.fillStyle = '#111110'; g.fillRect(0,0,W,H);
+  g.strokeStyle = css('--grid'); g.lineWidth = 1;
+  for(let k=0;k<=4;k++){
+    const y = T + k*(H-T-B)/4;
+    g.beginPath(); g.moveTo(L,y); g.lineTo(W-R,y); g.stroke();
+  }
+  g.fillStyle = css('--muted'); g.font = '10px system-ui'; g.textAlign = 'right';
+  g.fillText('0.9', L-4, T+8); g.fillText('0', L-4, H-B);
+
+  const n = S.hist.length;
+  if(n < 2){ g.textAlign='center'; g.fillText('fill the box to record', W/2, H/2); return; }
+  const X = i => L + i/(n-1)*(W-L-R);
+  const Y = v => T + (1-clamp(v/0.9,0,1))*(H-T-B);
+
+  const trace = (key, col) => {
+    g.beginPath();
+    for(let i=0;i<n;i++){ const x=X(i), y=Y(S.hist[i][key]); i?g.lineTo(x,y):g.moveTo(x,y); }
+    g.strokeStyle = col; g.lineWidth = 1.6; g.stroke();
+  };
+  trace('phi','#3987e5');
+  trace('side','#d95926');
+}
+
+/* ============================== readouts ================================== */
+const fmtN = v => v>=1000 ? (v/1000).toFixed(2)+' kN' : v.toFixed(1)+' N';
+function paintReadouts(){
+  const m = S.meas, W = totalWeight();
+  const side = W>0 ? (S.wall.L+S.wall.R)/W : 0;
+
+  /* per-wall panel: position, normal force, and share of the total weight.
+     The floor is expected near 1.00; the sides follow Rankine; the lid should be
+     0.00 unless the packing is pressed into its container. */
+  const b = S.box;
+  const wallRow = (key, pid, fid, rid, sid, pos, force, shear) => {
+    $(pid).textContent = CM(pos)+' cm';
+    $(fid).textContent = fmtN(force);
+    $(rid).textContent = W>0 ? (force/W).toFixed(3) : '–';
+    $(sid).textContent = fmtN(Math.abs(shear));
+    const tr = $('hw'+key.toUpperCase());
+    if(tr) tr.className = (S.sel===key || S.drag===key) ? 'sel' : '';
+  };
+  wallRow('x1','pX1','fX1','rX1','sX1', b.x1, S.wall.L, S.shear.L);
+  wallRow('x2','pX2','fX2','rX2','sX2', b.x2, S.wall.R, S.shear.R);
+  wallRow('y1','pY1','fY1','rY1','sY1', b.y1, S.wall.B, S.shear.B);
+  wallRow('y2','pY2','fY2','rY2','sY2', b.y2, S.wall.T, S.shear.T);
+  if(wallsSettling()) $('bSel').textContent = 'wall sweeping…';
+  $('fW').textContent = fmtN(W);
+
+  /* Why X1 need not equal X2, made visible.
+     Horizontal balance on the whole packing:  X1 - X2 + shear_floor - shear_lid = 0
+     Vertical:                                 Y1 - Y2 - shear_X1 + shear_X2 - W = 0
+     Both residuals sit at ~0 whenever the bed is genuinely static - so a non-zero
+     X1-X2 is not an error, it is exactly the load the frictional floor is holding.
+     The budget column is mu_w * N_floor, the most the floor could possibly hold. */
+  const imb = S.wall.L - S.wall.R;
+  const budget = S.muW*S.wall.B;
+  $('fImb').textContent = fmtN(Math.abs(imb));
+  $('rImb').textContent = W>0 ? (Math.abs(imb)/W).toFixed(3) : '–';
+  $('fBudget').textContent = '≤ '+fmtN(budget);
+  const resX = imb + S.shear.B - S.shear.T;
+  const resY = S.wall.B - S.wall.T - S.shear.L + S.shear.R - W;
+  const ref = Math.max(W, 1e-9);
+  const rc = v => Math.abs(v)/ref < 0.02 ? 'ok' : Math.abs(v)/ref < 0.10 ? 'warn' : 'bad';
+  $('fResX').innerHTML = '<span class="'+rc(resX)+'">'+(100*resX/ref).toFixed(1)+'%</span>';
+  $('fResY').innerHTML = '<span class="'+rc(resY)+'">'+(100*resY/ref).toFixed(1)+'%</span>';
+
+  $('hN').textContent = S.P.length;
+  $('hT').textContent = S.t.toFixed(2);
+  $('hPhi').textContent = m.phi ? m.phi.toFixed(4) : '–';
+  $('hZ').textContent  = m.Z  ? m.Z.toFixed(2)  : '–';
+  $('hZs').textContent = m.Zs ? m.Zs.toFixed(2) : '–';
+  $('hKE').textContent  = kineticEnergy().toExponential(1)+' J';
+  const ovCls = S.overlapPct < 1 ? 'ok' : S.overlapPct < 5 ? 'warn' : 'bad';
+  $('hOv').innerHTML = '<span class="'+ovCls+'">'+S.overlapPct.toFixed(2)+'% d</span>';
+
+  $('mN').textContent = S.P.length + (S.toPlace? ' (+'+S.toPlace+' queued)' : '');
+  $('mPhi').textContent = m.phi ? m.phi.toFixed(4) : '–';
+  $('mZ').textContent   = m.Z  ? m.Z.toFixed(2)  : '–';
+  $('mZs').textContent  = m.Zs ? m.Zs.toFixed(2) : '–';
+  $('mRat').textContent = m.cnt ? (100*m.rat).toFixed(1)+'%' : '–';
+  $('mH').textContent   = m.h ? (m.h-S.box.y1).toFixed(3)+' m' : '–';
+  $('mFill').textContent= m.fill ? (100*m.fill).toFixed(1)+'%' : '–';
+  if(S.jammedAt){
+    const pct = 100*2*S.jammedAt/S.d;
+    $('mGrain').innerHTML = '<span class="warn">'+pct.toFixed(0)+'% of d — jam-limited</span>';
+  } else $('mGrain').textContent = S.P.length ? '100% of d' : '–';
+
+  $('wW').textContent = fmtN(W);
+  $('wB').textContent = fmtN(S.wall.B);
+  $('wL').textContent = fmtN(S.wall.L);
+  $('wR').textContent = fmtN(S.wall.R);
+  $('wT').textContent = fmtN(S.wall.T);
+  $('wSide').textContent = (100*side).toFixed(1)+'%';
+  $('wBW').textContent   = W>0 ? (S.wall.B/W).toFixed(3) : '–';
+
+  /* effective earth-pressure coefficient: side·L /(W·H). Rankine puts a settled
+     granular bed near 0.3–0.5; well above that means the walls are being wedged. */
+  const H = S.meas.h;
+  const bedH = Math.max(1e-9, H - S.box.y1);      // height above the floor
+  const K = (W>0 && bedH>0) ? (S.wall.L+S.wall.R)*BW()/(W*bedH) : 0;
+  const kCls = K<0.55 ? 'ok' : K<0.9 ? 'warn' : 'bad';
+  $('wK').innerHTML = (W>0&&H>0) ? '<span class="'+kCls+'">'+K.toFixed(2)+'</span>' : '–';
+
+  /* with gravity off, anything the walls still carry is locked-in stress */
+  if(S.gActive === 0 && S.P.length){
+    const Wref = S.P.reduce((s,p)=>s+p.m,0)*S.g;
+    const res = (S.wall.L+S.wall.R+S.wall.B+S.wall.T)/Math.max(Wref,1e-9);
+    S.lockIn = res;
+  }
+  if(S.lockIn === undefined) $('wLock').textContent = 'press Unload';
+  else {
+    const lCls = S.lockIn<0.01 ? 'ok' : S.lockIn<0.05 ? 'warn' : 'bad';
+    $('wLock').innerHTML = '<span class="'+lCls+'">'+(100*S.lockIn).toFixed(2)+'% of W</span>';
+  }
+
+  $('badge').className = (S.gActive===0 && S.phase==='settled' && S.lockIn!==undefined && S.lockIn<0.01) ? 'on' : '';
+  $('phase').textContent = ({
+    idle:'idle', filling:'depositing…', growing:'inflating particles…',
+    settling:'settling…', settled:'settled', unloading:'unloading (g = 0)…',
+    jammed:'JAMMED — bed reached the lid, '+S.toPlace+' balls never placed',
+    refused:'REFUSED — N exceeds what this box can hold'
+  })[S.phase] || S.phase;
+  $('phase').style.color = (S.phase==='jammed'||S.phase==='refused')
+    ? 'var(--bad)' : 'var(--accent)';
+}
+function maxOverlapPct(){
+  /* the pair list already holds every candidate; no grid rebuild needed */
+  const P = S.P; let mx = 0;
+  for(let k=0;k<PL.n;k++){
+    const a = P[PL.i[k]], b = P[PL.j[k]];
+    const d = Math.hypot(b.x-a.x, b.y-a.y), s = a.r+b.r;
+    if(d < s){ const o = (s-d)/S.d; if(o > mx) mx = o; }
+  }
+  return 100*mx;
+}
+
+/* ================================ loop ==================================== */
+let last = 0, fpsT = 0, fpsN = 0, histT = 0, slowT = 0;
+function frame(t){
+  requestAnimationFrame(frame);
+  const dtFrame = Math.min(0.05,(t-last)/1000)||0.016;
+  last = t;
+
+  if(S.running){
+    if(S.phase==='filling') depositTick(dtFrame);
+    if(S.phase==='growing') growTick(dtFrame);
+    for(let s=0;s<S.sub;s++) step(S.dt);
+    if(S.phase==='settling') settleTick();
+    if(S.phase==='unloading' && isQuiet()){ S.phase = 'settled'; }
+  }
+
+  flushWallAvg();
+  measure();
+
+  /* the two expensive diagnostics run at 5 Hz, not every frame */
+  slowT += dtFrame;
+  if(slowT > 0.2){
+    slowT = 0;
+    samplePhi(24000);
+    S.overlapPct = maxOverlapPct();
+    measure();                      // refresh φ into S.meas
+  }
+
+  histT += dtFrame;
+  if(histT > 0.1 && S.P.length){
+    histT = 0;
+    const W = totalWeight();
+    S.hist.push({phi:S.meas.phi, side: W>0 ? (S.wall.L+S.wall.R)/W : 0});
+    if(S.hist.length > 460) S.hist.shift();
+  }
+
+  draw();
+  drawChart();
+  paintReadouts();
+
+  fpsN++; fpsT += dtFrame;
+  if(fpsT > 0.5){
+    $('hFps').textContent = (fpsN/fpsT).toFixed(0)+' fps';
+    $('tagRate').textContent = (S.sub*S.dt*(fpsN/fpsT)).toFixed(2)+' × real time';
+    fpsN = 0; fpsT = 0;
+  }
+}
+
+/* ================================ wiring ================================== */
+function bind(id, key, valId, fmt, after){
+  const el = $(id);
+  const apply = () => {
+    S[key] = +el.value;
+    if(valId) $(valId).textContent = fmt ? fmt(S[key]) : S[key];
+    if(after) after();
+  };
+  el.addEventListener('input', apply);
+  apply();
+}
+bind('pD','d','pDv', v=>(v*1000).toFixed(1), ()=>{ recomputeDt(); fillCapacityNote(); });
+bind('pX','x','pXv', v=>v.toFixed(0), ()=>{ S.x = +$('pX').value/100; recomputeDt(); fillCapacityNote(); });
+bind('pMu','mu','pMuv', v=>v.toFixed(2), ()=>{ if(S.phase!=='filling'&&S.phase!=='growing') S.muActive=S.mu; });
+bind('pMur','mur','pMurv', v=>v.toFixed(3));
+bind('pMuW','muW','pMuWv', v=>v.toFixed(2));
+bind('pRho','rho','pRhov', v=>v.toFixed(0), recomputeDt);
+bind('cKt','ktRatio','cKtv', v=>v.toFixed(2), recomputeDt);
+bind('cZeta','zeta','cZetav', v=>v.toFixed(2));
+bind('cBv','bv','cBvv', v=>v.toFixed(1));
+bind('cG','g','cGv', v=>v.toFixed(2), ()=>{ if(S.phase!=='unloading') S.gActive=S.g; });
+bind('bFill','fillTarget','bFillv', v=>v.toFixed(2), fillCapacityNote);
+
+/* kn slider is log10 */
+$('cKn').addEventListener('input', e=>{
+  S.kn = Math.pow(10, +e.target.value);
+  $('cKnv').textContent = S.kn.toExponential(1);
+  recomputeDt();
+});
+S.kn = Math.pow(10, +$('cKn').value);
+$('cKnv').textContent = S.kn.toExponential(1);
+
+$('pN').addEventListener('input', e=>{ S.N = clamp(+e.target.value||0,1,20000); fillCapacityNote(); });
+$('fRate').addEventListener('input', e=>{ S.rate = +e.target.value; $('fRatev').textContent = S.rate; });
+$('fMethod').addEventListener('change', updateHint);
+
+/* ---------------------------------------------------------- wall control --
+   Four independent walls, each on a slider and each draggable in the view.
+   Opposite walls are kept at least BMIN() apart so the box can never invert or
+   collapse to nothing — a negative-width box would make every containment test
+   nonsense at once. */
+function setWall(which, v){
+  const t = S.boxT, g = BMIN();
+  v = snapWall(v);        // every path lands on the 1 mm grid, not just dragging
+  if(which==='x1') t.x1 = Math.min(v, t.x2-g);
+  else if(which==='x2') t.x2 = Math.max(v, t.x1+g);
+  else if(which==='y1') t.y1 = Math.min(v, t.y2-g);
+  else if(which==='y2') t.y2 = Math.max(v, t.y1+g);
+  syncWallUI(); fillCapacityNote();
+}
+/* put the walls somewhere instantly — only safe with no particles in the way */
+function setWallNow(which, v){
+  setWall(which, v);
+  S.box[which] = S.boxT[which];
+  PL.valid = false;
+}
+const wallsSettling = () => ['x1','x2','y1','y2'].some(k=>S.box[k]!==S.boxT[k]);
+function syncWallUI(){
+  const b = S.boxT;
+  const set = (id,val)=>{ const el=$(id); if(el) el.value = (val*100).toFixed(1); };
+  set('wX1',b.x1); set('wX2',b.x2); set('wY1',b.y1); set('wY2',b.y2);
+  $('wX1v').textContent=CM(b.x1); $('wX2v').textContent=CM(b.x2);
+  $('wY1v').textContent=CM(b.y1); $('wY2v').textContent=CM(b.y2);
+  $('bWH').textContent = CM(BW())+' × '+CM(BH());
+  $('bArea').textContent = (BW()*BH()*1e4).toFixed(0);
+  $('bSel').textContent = S.sel ? WALL_NAMES[S.sel]+' — arrow keys' : 'none';
+}
+[['wX1','x1'],['wX2','x2'],['wY1','y1'],['wY2','y2']].forEach(([id,which])=>{
+  $(id).addEventListener('input', e=> setWall(which, snapWall(+e.target.value/100)));
+  $(id).addEventListener('mousedown', ()=>{ S.sel = which; syncWallUI(); });
+});
+
+/* ---- units -------------------------------------------------------------
+   Everything is SI internally (metres, kg, newtons) — same as the 3D lab, and
+   the only way the contact law and the Rankine checks stay dimensionally clean.
+   Only the DISPLAY is converted, to whatever a granular experimentalist would
+   actually write down: grain diameters in mm, container dimensions in cm,
+   forces in N or kN. In 2D the disks are unit-thickness, so every force here is
+   really force per metre of depth (N/m); the ratios that matter — bottom/W, K —
+   are dimensionless either way. */
+const CM = v => (v*100).toFixed(1);            // metres → cm
+const WALL_STEP = 0.001;                       // 1 mm — the finest useful nudge
+const snapWall = v => Math.round(v/WALL_STEP)*WALL_STEP;
+const WALL_NAMES = {x1:'X1 left', x2:'X2 right', y1:'Y1 floor', y2:'Y2 lid'};
+
+/* which wall is under the pointer, if any (within 7 px of the line) */
+function wallUnder(px, py){
+  const b = S.box, tol = 7;
+  const x1=SX(b.x1), x2=SX(b.x2), y1=SY(b.y1), y2=SY(b.y2);
+  const insideY = py > Math.min(y1,y2)-tol && py < Math.max(y1,y2)+tol;
+  const insideX = px > Math.min(x1,x2)-tol && px < Math.max(x1,x2)+tol;
+  if(insideY && Math.abs(px-x1) <= tol) return 'x1';
+  if(insideY && Math.abs(px-x2) <= tol) return 'x2';
+  if(insideX && Math.abs(py-y1) <= tol) return 'y1';
+  if(insideX && Math.abs(py-y2) <= tol) return 'y2';
+  return null;
+}
+function evPos(ev){
+  const r = cv.getBoundingClientRect();
+  return [ev.clientX-r.left, ev.clientY-r.top];
+}
+/* Dragging is deliberately geared DOWN. One pixel of pointer travel used to be
+   one pixel of wall travel, which at typical zoom is several millimetres per
+   pixel — far too coarse to place a wall against a packing. The wall now moves
+   a fraction of the pointer's travel from where the drag began, and snaps to a
+   1 mm grid. Hold Shift while dragging for another 5× of resolution. */
+const DRAG_GEAR = 0.30;
+cv.addEventListener('mousedown', ev=>{
+  if(ev.button !== 0) return;                 // primary button only
+  const [px,py] = evPos(ev);
+  const w = wallUnder(px,py);
+  if(w){
+    S.drag = w;
+    S.dragFrom = [px,py];
+    S.dragVal = S.boxT[w];
+    S.dragMoved = 0;
+    ev.preventDefault();
+  }
+});
+window.addEventListener('mousemove', ev=>{
+  const [px,py] = evPos(ev);
+  /* Self-heal a lost mouseup. If the pointer left the window mid-drag, or the
+     release landed somewhere that swallowed it, the wall would otherwise follow
+     the cursor forever. buttons&1 is the ground truth for "still held". */
+  if(S.drag && !(ev.buttons & 1)){ endDrag(); }
+  if(S.drag){
+    const gear = DRAG_GEAR*(ev.shiftKey ? 0.2 : 1);
+    const dPx = (S.drag==='x1'||S.drag==='x2')
+      ? (px - S.dragFrom[0]) : -(py - S.dragFrom[1]);   // screen y is flipped
+    S.dragMoved = Math.max(S.dragMoved, Math.abs(px-S.dragFrom[0])+Math.abs(py-S.dragFrom[1]));
+    setWall(S.drag, snapWall(S.dragVal + dPx/sc*gear));
+    return;
+  }
+  const w = wallUnder(px,py);
+  cv.style.cursor = !w ? 'default'
+    : (w==='x1'||w==='x2') ? 'ew-resize' : 'ns-resize';
+});
+/* A press that never really moved is a CLICK: it toggles selection instead of
+   nudging the wall, so the same gesture both grabs and selects. */
+function endDrag(){
+  if(S.drag && S.dragMoved < 4) S.sel = (S.sel === S.drag) ? null : S.drag;
+  S.drag = null;
+  syncWallUI();
+}
+window.addEventListener('mouseup', endDrag);
+
+/* arrow keys drive the selected wall: 1 mm a press, 10 mm with Shift */
+window.addEventListener('keydown', ev=>{
+  if(!S.sel) return;
+  const tag = (ev.target && ev.target.tagName) || '';
+  if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  const horiz = (S.sel === 'x1' || S.sel === 'x2');
+  let d = 0;
+  if(ev.key === 'ArrowLeft')  d = horiz ? -1 : 0;
+  else if(ev.key === 'ArrowRight') d = horiz ?  1 : 0;
+  else if(ev.key === 'ArrowDown')  d = horiz ?  0 : -1;
+  else if(ev.key === 'ArrowUp')    d = horiz ?  0 :  1;
+  else if(ev.key === 'Escape'){ S.sel = null; syncWallUI(); return; }
+  else return;
+  if(!d) return;
+  ev.preventDefault();
+  setWall(S.sel, snapWall(S.boxT[S.sel] + d*WALL_STEP*(ev.shiftKey ? 10 : 1)));
+});
+cv.addEventListener('touchstart', ev=>{
+  const t=ev.touches[0]; const r=cv.getBoundingClientRect();
+  const w = wallUnder(t.clientX-r.left, t.clientY-r.top);
+  if(w){ S.drag=w; S.dragFrom=[t.clientX-r.left,t.clientY-r.top];
+         S.dragVal=S.boxT[w]; S.dragMoved=0; ev.preventDefault(); }
+}, {passive:false});
+window.addEventListener('touchmove', ev=>{
+  if(!S.drag) return;
+  const t=ev.touches[0]; const r=cv.getBoundingClientRect();
+  const px=t.clientX-r.left, py=t.clientY-r.top;
+  const dPx = (S.drag==='x1'||S.drag==='x2') ? (px-S.dragFrom[0]) : -(py-S.dragFrom[1]);
+  S.dragMoved = Math.max(S.dragMoved, Math.abs(px-S.dragFrom[0])+Math.abs(py-S.dragFrom[1]));
+  setWall(S.drag, snapWall(S.dragVal + dPx/sc*DRAG_GEAR));
+  ev.preventDefault();
+}, {passive:false});
+window.addEventListener('touchend', endDrag);
+
+$('bAuto').addEventListener('click', ()=>{
+  /* Solve L from the target fill: the settled bed reaches the lid when
+     N·a_grain = φ·L², so L = √(N·a_grain/φ). At φ = 0.84 the balls fill the box
+     with no dead space; dial φ down to buy headroom for pluviation. */
+  const side = clamp(+sizeForN(S.fillTarget).toFixed(2), 0.2, 4);
+  setWallNow('x2', S.boxT.x1 + side);  // grow from the lower-left corner
+  setWallNow('y2', S.boxT.y1 + side);
+  syncWallUI();
+  fillCapacityNote();
+});
+
+$('bFill').addEventListener('click', startFill);
+$('bTap').addEventListener('click', tap);
+$('bUnload').addEventListener('click', unload);
+$('bClear').addEventListener('click', clearAll);
+$('bPause').addEventListener('click', ()=>{
+  S.running = !S.running;
+  $('bPause').textContent = S.running ? '❙❙ Pause' : '▶ Run';
+});
+$('bStep').addEventListener('click', ()=>{ for(let s=0;s<S.sub;s++) step(S.dt); });
+
+$('dColor').addEventListener('change', e=>{ S.colour = e.target.value; });
+$('dSpin').addEventListener('change', e=>{ S.spin = e.target.checked; });
+$('dRegion').addEventListener('change', e=>{ S.region = e.target.checked; });
+$('dNet').addEventListener('change', e=>{ S.net = e.target.checked; });
+
+/* φ quoted below is measured, N = 250, d = 0.03, ±15%, μ = 0.30 unless stated. */
+const HINTS = {
+  rain:'Particles rain in with friction already active, so contacts lock on first touch and the '+
+       'bed arrests before it can rearrange — the loosest route. Measured φ ≈ 0.828. Raise μ to '+
+       'open it further (φ ≈ 0.822 at μ = 0.8).',
+  rainSmooth:'Identical deposition with μ forced to 0, so disks roll into the deepest well '+
+       'available; friction is restored once the bed is quiet. Measured φ ≈ 0.845, Z ≈ 4.3 — the '+
+       'densest route at realistic dispersity.',
+  lattice:'A jittered triangular lattice released at once. Crystallises only when the grains are '+
+       'all one size: φ ≈ 0.869 at ±0% (hexagonal limit is 0.9069), but ≈ 0.820 at ±15%, where '+
+       'dispersity frustrates the lattice and it becomes the LOOSEST of the four.',
+  grow:'Seeds scattered at 35% radius, then inflated in place under gravity but without friction. '+
+       'No deposition front, so the packing is isotropic. Measured φ ≈ 0.836, Z ≈ 4.1.'
+};
+function updateHint(){ $('fHint').textContent = HINTS[$('fMethod').value]; fillCapacityNote(); }
+
+window.addEventListener('resize', ()=>{ resize(); });
+resize(); recomputeDt(); syncWallUI(); updateHint(); clearAll();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
