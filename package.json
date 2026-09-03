@@ -2,12 +2,15 @@
   "name": "granularlab-2d",
   "version": "1.0.0",
   "private": true,
-  "description": "2D discrete-element granular packing lab — Cundall–Strack soft-disk DEM in a single page",
+  "description": "2D discrete-element granular packing lab - Cundall-Strack soft-disk DEM in a single page",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0"
   }
 }

@@ -15,7 +15,9 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--page);color:var(--ink);
   font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5;
-  height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  min-height:100vh;display:flex;flex-direction:column}
+/* the lab keeps a full viewport; feedback lives below it, reached by scrolling */
+#main{height:calc(100vh - 42px)}
 
 header{padding:9px 16px;border-bottom:1px solid var(--baseline);
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface)}
@@ -25,7 +27,7 @@ header .sp{flex:1}
 header .tag{font-size:11px;color:var(--muted);border:1px solid var(--baseline);
   padding:2px 8px;border-radius:10px}
 
-#main{flex:1;display:flex;min-height:0}
+#main{flex:0 0 auto;display:flex;min-height:0}
 #simwrap{flex:1;position:relative;min-width:0;background:#0a0a0a}
 #sim{display:block;width:100%;height:100%}
 #hud{position:absolute;top:10px;left:12px;font-size:12px;color:var(--ink2);
@@ -78,6 +80,55 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   border:1px solid var(--baseline);border-radius:5px;margin-top:8px}
 .legend{display:flex;gap:12px;font-size:11px;color:var(--muted);margin-top:5px;flex-wrap:wrap}
 .legend i{display:inline-block;width:9px;height:2px;vertical-align:middle;margin-right:4px}
+
+
+/* ---------------------------------------------------------- feedback --- */
+#fb{width:100%;border-top:1px solid var(--baseline);background:var(--surface);
+  padding:30px 0 34px}
+.fb-wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+#fb h2{font-size:16px;font-weight:600;margin-bottom:5px}
+.fb-sub{color:var(--muted);font-size:13px;max-width:70ch;margin-bottom:16px}
+#fbForm textarea{width:100%;background:var(--page);color:var(--ink);
+  border:1px solid var(--baseline);border-radius:7px;padding:11px 13px;
+  font:inherit;font-size:13.5px;line-height:1.6;resize:vertical;min-height:92px}
+#fbForm textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.fb-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.fb-row{display:flex;align-items:center;gap:14px;margin-top:10px;flex-wrap:wrap}
+.fb-check{font-size:12.5px;color:var(--ink2);display:flex;align-items:center;gap:7px;cursor:pointer}
+.fb-peek{color:var(--accent);text-decoration:underline;cursor:pointer;font-size:12px}
+.fb-count{font-size:11.5px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+#fbCtxView{background:var(--page);border:1px solid var(--baseline);border-radius:6px;
+  padding:10px 12px;margin-top:9px;font-family:ui-monospace,Consolas,monospace;
+  font-size:11.5px;color:var(--ink2);white-space:pre-wrap;word-break:break-word;max-height:190px;overflow:auto}
+.fb-msg{font-size:12.5px;margin-top:9px;min-height:17px}
+.fb-msg.ok{color:var(--ok)} .fb-msg.bad{color:var(--bad)}
+
+.fb-listhead{display:flex;align-items:center;gap:10px;margin:26px 0 10px;
+  padding-bottom:7px;border-bottom:1px solid var(--baseline);flex-wrap:wrap}
+#fbCountLbl{font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.fb-admin{margin-left:auto;display:flex;gap:6px}
+.fb-admin input{background:var(--page);color:var(--ink);border:1px solid var(--baseline);
+  border-radius:5px;padding:4px 8px;font:inherit;font-size:12px;width:150px}
+#fbList{list-style:none;display:flex;flex-direction:column;gap:9px}
+#fbList li{background:var(--page);border:1px solid var(--baseline);border-radius:7px;padding:12px 14px}
+#fbList .fb-when{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;
+  display:flex;align-items:center;gap:10px;margin-bottom:5px}
+#fbList .fb-text{font-size:13.5px;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+#fbList .fb-ctx{margin-top:8px}
+#fbList .fb-ctx summary{font-size:11.5px;color:var(--accent);cursor:pointer}
+#fbList .fb-ctx pre{margin-top:6px;background:var(--surface2);border:1px solid var(--baseline);
+  border-radius:5px;padding:8px 10px;font-family:ui-monospace,Consolas,monospace;
+  font-size:11px;color:var(--ink2);white-space:pre-wrap;word-break:break-word;max-height:170px;overflow:auto}
+#fbList .fb-del{margin-left:auto;background:transparent;border:1px solid var(--baseline);
+  color:var(--muted);border-radius:5px;padding:1px 8px;font-size:11px;cursor:pointer}
+#fbList .fb-del:hover{border-color:var(--bad);color:var(--bad)}
+.fb-empty{color:var(--muted);font-size:13px;padding:6px 0}
+
+#credit{width:100%;border-top:1px solid var(--baseline);background:var(--page);
+  padding:20px 0 30px;color:var(--muted);font-size:12.5px}
+#credit p{margin-bottom:5px;max-width:80ch}
+#credit b{color:var(--ink2)}
+#credit a{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -275,6 +326,50 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
   </div>
 </div>
+
+<section id="fb">
+  <div class="fb-wrap">
+    <h2>Notes &amp; feedback</h2>
+    <p class="fb-sub">Anonymous and timestamped. Nothing about who you are is recorded —
+    no name, no account, no address kept. Tell us what looked wrong, what was confusing,
+    or what you want next.</p>
+
+    <form id="fbForm" autocomplete="off">
+      <textarea id="fbBody" rows="4" maxlength="4000"
+        placeholder="What did you notice? If it is about a specific result, tick the box below and the current settings travel with your note."></textarea>
+      <!-- honeypot: hidden from people, irresistible to bots -->
+      <div class="fb-hp"><label>Website<input type="text" id="fbHp" tabindex="-1"></label></div>
+      <div class="fb-row">
+        <label class="fb-check"><input type="checkbox" id="fbCtx" checked>
+          attach the current settings <span class="fb-peek" id="fbPeek">show</span></label>
+        <span class="fb-count"><span id="fbCount">0</span>/4000</span>
+        <button type="submit" class="primary" id="fbSend">Send note</button>
+      </div>
+      <pre id="fbCtxView" hidden></pre>
+      <div id="fbMsg" class="fb-msg"></div>
+    </form>
+
+    <div class="fb-listhead">
+      <span id="fbCountLbl">No notes yet</span>
+      <span class="fb-admin">
+        <input type="password" id="fbTok" placeholder="admin token" autocomplete="off">
+        <button id="fbUnlock" type="button">Unlock</button>
+      </span>
+    </div>
+    <ul id="fbList"></ul>
+  </div>
+</section>
+
+<footer id="credit">
+  <div class="fb-wrap">
+    <p><b>Granular Lab 2D.</b> A two-dimensional discrete-element packing lab.</p>
+    <p>Built on the work of <b>Chang Yang</b>, whose 3D Granular Mechanics Lab and
+    Edwards-ensemble analysis this 2D version follows — see
+    <a href="https://physics-informed-ai.com/" target="_blank" rel="noopener">physics-informed-ai.com</a>
+    and Chang, Chang &amp; Chao, <i>Phys. Rev. E</i> <b>114</b>, 015410 (2026),
+    <a href="https://doi.org/10.1103/1fvf-342f" target="_blank" rel="noopener">doi:10.1103/1fvf-342f</a>.</p>
+  </div>
+</footer>
 
 <script>
 "use strict";
@@ -1545,6 +1640,164 @@ function updateHint(){ $('fHint').textContent = HINTS[$('fMethod').value]; fillC
 
 window.addEventListener('resize', ()=>{ resize(); });
 resize(); recomputeDt(); syncWallUI(); updateHint(); clearAll();
+
+/* ==========================================================================
+   FEEDBACK — anonymous, timestamped, stored server-side in SQLite.
+   Nothing identifying is sent: no name, no account, no address is kept.
+   The optional context blob is simulation settings only.
+   ========================================================================== */
+const FB = {
+  el: id => document.getElementById(id),
+  token: null,
+  /* the settings a note is about — the whole reason to collect this in-page
+     rather than by email, where none of it would survive the retelling */
+  context(){
+    const b = S.box, m = S.meas;
+    return {
+      particles: S.P.length, N_target: S.N,
+      grain_mm: +(S.d*1000).toFixed(2), dispersity_pct: +(S.x*100).toFixed(0),
+      mu: S.mu, mu_wall: S.muW, mu_roll: S.mur, density: S.rho,
+      kn: S.kn, kt_over_kn: S.ktRatio, zeta: S.zeta, vel_damping: S.bv, gravity: S.g,
+      box_cm: { x1:+(b.x1*100).toFixed(1), x2:+(b.x2*100).toFixed(1),
+                y1:+(b.y1*100).toFixed(1), y2:+(b.y2*100).toFixed(1) },
+      method: (document.getElementById('fMethod')||{}).value,
+      phase: S.phase,
+      phi: +(m.phi||0).toFixed(4), Z: +(m.Z||0).toFixed(2),
+      overlap_pct_d: +(S.overlapPct||0).toFixed(2),
+      wall_N: { X1:+S.wall.L.toFixed(1), X2:+S.wall.R.toFixed(1),
+                Y1:+S.wall.B.toFixed(1), Y2:+S.wall.T.toFixed(1) },
+      weight_N: +totalWeight().toFixed(1),
+      dt: S.dt, substeps: S.sub,
+      viewport: innerWidth+'x'+innerHeight,
+      page: location.pathname
+    };
+  },
+  ctxText(){ return JSON.stringify(this.context(), null, 1); },
+
+  when(iso){
+    const d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleString(undefined,
+      {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  },
+  esc(t){ const n=document.createElement('div'); n.textContent=t; return n.innerHTML; },
+
+  msg(text, kind){
+    const el = this.el('fbMsg');
+    el.textContent = text || '';
+    el.className = 'fb-msg' + (kind ? ' '+kind : '');
+  },
+
+  async load(){
+    let data;
+    try {
+      const r = await fetch('/api/feedback');
+      if(!r.ok) throw new Error(r.status);
+      data = await r.json();
+    } catch {
+      this.el('fbCountLbl').textContent = 'Notes unavailable';
+      this.el('fbList').innerHTML =
+        '<li class="fb-empty">Could not reach the server. Notes are only stored when this page is served by it — opening the file directly will not save anything.</li>';
+      return;
+    }
+    const items = data.items || [];
+    this.el('fbCountLbl').textContent =
+      items.length ? items.length + (items.length===1 ? ' note' : ' notes') : 'No notes yet';
+    const list = this.el('fbList');
+    if(!items.length){
+      list.innerHTML = '<li class="fb-empty">Nothing yet — be the first.</li>';
+      return;
+    }
+    list.innerHTML = items.map(it => {
+      const del = this.token
+        ? '<button class="fb-del" data-id="'+it.id+'">delete</button>' : '';
+      const ctx = it.context
+        ? '<details class="fb-ctx"><summary>settings at the time</summary><pre>'
+          + this.esc(it.context) + '</pre></details>' : '';
+      return '<li><div class="fb-when">'+this.when(it.created_at)+del+'</div>'
+           + '<div class="fb-text">'+this.esc(it.body)+'</div>'+ctx+'</li>';
+    }).join('');
+    list.querySelectorAll('.fb-del').forEach(b =>
+      b.addEventListener('click', () => this.remove(b.dataset.id)));
+  },
+
+  async send(ev){
+    ev.preventDefault();
+    const body = this.el('fbBody').value.trim();
+    if(!body) return this.msg('Write something first.', 'bad');
+    const btn = this.el('fbSend');
+    btn.disabled = true; this.msg('Sending…');
+    try {
+      const r = await fetch('/api/feedback', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          body,
+          context: this.el('fbCtx').checked ? this.ctxText() : null,
+          website: this.el('fbHp').value        // honeypot
+        })
+      });
+      const out = await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(out.error || 'Could not save that.');
+      this.el('fbBody').value = ''; this.el('fbCount').textContent = '0';
+      this.msg('Saved. Thank you.', 'ok');
+      this.load();
+    } catch(e){
+      this.msg(e.message || 'Could not save that.', 'bad');
+    } finally { btn.disabled = false; }
+  },
+
+  async remove(id){
+    if(!this.token) return;
+    if(!confirm('Delete this note permanently?')) return;
+    try {
+      const r = await fetch('/api/feedback/'+id, {
+        method:'DELETE', headers:{'x-admin-token': this.token}
+      });
+      if(!r.ok) throw new Error('Not authorised.');
+      this.load();
+    } catch(e){ this.msg(e.message, 'bad'); }
+  },
+
+  async unlock(){
+    const tok = this.el('fbTok').value.trim();
+    if(!tok) return;
+    try {
+      const r = await fetch('/api/admin/check', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({token: tok})
+      });
+      const out = await r.json();
+      if(out.ok){
+        this.token = tok;
+        try { localStorage.setItem('glab_admin', tok); } catch {}
+        this.el('fbTok').value = ''; this.el('fbTok').placeholder = 'unlocked';
+        this.el('fbUnlock').textContent = 'Unlocked';
+        this.msg('Delete controls enabled.', 'ok');
+        this.load();
+      } else this.msg('That token was not recognised.', 'bad');
+    } catch { this.msg('Could not check that token.', 'bad'); }
+  },
+
+  init(){
+    this.el('fbForm').addEventListener('submit', e => this.send(e));
+    this.el('fbBody').addEventListener('input', e =>
+      this.el('fbCount').textContent = e.target.value.length);
+    this.el('fbUnlock').addEventListener('click', () => this.unlock());
+    this.el('fbTok').addEventListener('keydown', e => { if(e.key==='Enter') this.unlock(); });
+    this.el('fbPeek').addEventListener('click', () => {
+      const v = this.el('fbCtxView');
+      v.hidden = !v.hidden;
+      if(!v.hidden) v.textContent = this.ctxText();
+      this.el('fbPeek').textContent = v.hidden ? 'show' : 'hide';
+    });
+    /* remember an unlocked session, but re-verify against the server */
+    let saved = null;
+    try { saved = localStorage.getItem('glab_admin'); } catch {}
+    if(saved){ this.el('fbTok').value = saved; this.unlock(); }
+    else this.load();
+  }
+};
+FB.init();
+
 requestAnimationFrame(frame);
 </script>
 </body>

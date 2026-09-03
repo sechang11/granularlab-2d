@@ -120,11 +120,58 @@ Comfortable interactive ceiling is ~1000; beyond that it runs, just slower.
 it and overlap is `force/k_n`, so a setting giving 1% overlap at N = 800 gives 7%
 at N = 8000. Watch the *max overlap* readout: green under 1%, red over 5%.
 
+## Feedback
+
+A full-width section at the bottom of the page collects **anonymous, timestamped**
+notes into SQLite. No name, no account, no IP is stored — the only optional extra
+is a snapshot of the simulation settings, which is the whole reason to collect
+this in the page rather than by email: "the wall force looks wrong" is
+unactionable, the same sentence with N, mu, k_n and the box dimensions attached
+is reproducible in thirty seconds.
+
+Spam defences: a honeypot field, a 5-per-10-minutes per-IP rate limit (held in
+memory, never written), and a 4000-character cap.
+
+**Deletion is owner-only.** Set `ADMIN_TOKEN` in the Railway environment, then
+enter it in the *admin token* box under the notes list to reveal delete controls.
+The token is compared in constant time and is never in the repository. With
+`ADMIN_TOKEN` unset, nothing can be deleted through the API at all.
+
+### API
+
+| method | path | auth |
+|---|---|---|
+| `GET` | `/api/feedback` | public |
+| `POST` | `/api/feedback` | public, rate-limited |
+| `POST` | `/api/admin/check` | – |
+| `DELETE` | `/api/feedback/:id` | `x-admin-token` |
+
 ## Deploying
 
 Railway auto-detects Node from `package.json` and runs `npm start`.
 `railway.json` pins the health check to `/healthz`. `PORT` comes from the
 platform; the server binds `0.0.0.0`.
+
+**A volume is required.** Railway rebuilds the container filesystem on every
+deploy, so a SQLite file inside the image is wiped each time you ship. Mount a
+volume and point the app at it:
+
+1. Railway → your service → **Variables**
+   - `DATA_DIR` = `/data`
+   - `ADMIN_TOKEN` = a long random string you keep to yourself
+2. Railway → your service → **Volumes** → add a volume mounted at `/data`
+
+Without the volume the app still runs, but every deploy starts the notes empty.
+
+## Credits
+
+The 2D lab is original work. It follows the physics and analysis of
+**Chang Yang** — the 3D Granular Mechanics Lab at
+[physics-informed-ai.com](https://physics-informed-ai.com/) and the
+Edwards-ensemble treatment in Chang, Chang & Chao, *Phys. Rev. E* **114**,
+015410 (2026), [doi:10.1103/1fvf-342f](https://doi.org/10.1103/1fvf-342f).
+
+No code or content from those sites is redistributed here.
 
 ## Licence
 
