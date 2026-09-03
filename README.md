@@ -148,6 +148,15 @@ The token is compared in constant time and is never in the repository. With
 
 ## Deploying
 
+**Node is pinned to 22.x** (`engines` and `.node-version`), and that pin is load
+bearing. `better-sqlite3` is a native module: it downloads a prebuilt binary for
+your exact Node ABI, and falls back to compiling from source when none matches.
+Version 11.10.0 publishes Linux prebuilds for ABI v108/v115/v127/v131 — Node
+18/20/22/23 — and **nothing for Node 24**. Leaving the range open let Railway
+pick Node 24, which found no prebuild, tried to compile, and died looking for a
+Python that is not in the image. Do not widen the range without checking that a
+prebuild exists for the Node version you are moving to.
+
 Railway auto-detects Node from `package.json` and runs `npm start`.
 `railway.json` pins the health check to `/healthz`. `PORT` comes from the
 platform; the server binds `0.0.0.0`.
