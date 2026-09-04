@@ -120,6 +120,28 @@ Comfortable interactive ceiling is ~1000; beyond that it runs, just slower.
 it and overlap is `force/k_n`, so a setting giving 1% overlap at N = 800 gives 7%
 at N = 8000. Watch the *max overlap* readout: green under 1%, red over 5%.
 
+## Rendering robustness
+
+`fit()` used a flat 26 px padding, so any canvas smaller than 52 px in either
+direction produced a **negative** scale. Every disk radius is `r*sc`, so the
+first `arc()` threw *"radius provided is negative"* — and because that throw
+happened inside `draw()`, the `drawChart()` and `paintReadouts()` calls after it
+never ran. The HUD froze on stale values while the physics carried on
+invisibly: the page looked online but the balls never appeared to fill.
+
+The trigger was layout, not physics. `#panel` was a fixed 330 px beside a
+`flex:1` canvas, so any window under about 400 px left the canvas less room than
+the padding. Every phone in portrait was in that range.
+
+Three fixes: padding now scales with the viewport and `sc` is clamped positive;
+painting is wrapped so a render error can never stop the readouts (logged once,
+not per frame); and below 820 px the layout stacks — canvas on top, controls
+beneath, both full width. A `ResizeObserver` keeps the canvas in step with its
+container, since the panel can wrap without a window resize event.
+
+Verified at 1440, 1024, 820, 400 and 320 px wide: scale positive, no throw, and
+a 400-ball fill renders with the HUD live.
+
 ## Feedback
 
 A full-width section at the bottom of the page collects **anonymous, timestamped**

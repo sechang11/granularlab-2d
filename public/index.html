@@ -16,8 +16,10 @@
 body{background:var(--page);color:var(--ink);
   font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5;
   min-height:100vh;display:flex;flex-direction:column}
-/* the lab keeps a full viewport; feedback lives below it, reached by scrolling */
-#main{height:calc(100vh - 42px)}
+/* The lab occupies most of a viewport; feedback lives below it. Heights are set
+   on the two columns rather than derived from the header, because the header
+   wraps on narrow screens and any calc(100vh - fixed) guess goes wrong there. */
+#labH{--labH:clamp(360px, calc(100vh - 64px), 1000px)}
 
 header{padding:9px 16px;border-bottom:1px solid var(--baseline);
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface)}
@@ -27,8 +29,8 @@ header .sp{flex:1}
 header .tag{font-size:11px;color:var(--muted);border:1px solid var(--baseline);
   padding:2px 8px;border-radius:10px}
 
-#main{flex:0 0 auto;display:flex;min-height:0}
-#simwrap{flex:1;position:relative;min-width:0;background:#0a0a0a}
+#main{flex:0 0 auto;display:flex;min-height:0;--labH:clamp(360px, calc(100vh - 64px), 1000px)}
+#simwrap{flex:1;position:relative;min-width:0;background:#0a0a0a;height:var(--labH)}
 #sim{display:block;width:100%;height:100%}
 #hud{position:absolute;top:10px;left:12px;font-size:12px;color:var(--ink2);
   background:rgba(10,10,10,.72);border:1px solid var(--border);border-radius:6px;
@@ -46,7 +48,19 @@ header .tag{font-size:11px;color:var(--muted);border:1px solid var(--baseline);
   background:rgba(10,10,10,.72);border:1px solid var(--border);border-radius:6px;padding:5px 10px}
 
 #panel{width:330px;flex:0 0 330px;overflow-y:auto;background:var(--surface);
-  border-left:1px solid var(--baseline);padding-bottom:40px}
+  border-left:1px solid var(--baseline);padding-bottom:40px;height:var(--labH)}
+
+/* Below ~820px the 330px panel leaves the canvas too little room — under about
+   400px it left less than the padding, which is what drove the scale negative.
+   Stack instead: canvas on top, controls beneath, both full width. */
+@media (max-width: 820px){
+  #main{flex-direction:column}
+  #simwrap{width:100%;height:clamp(300px, 58vh, 560px);flex:0 0 auto}
+  #panel{width:100%;flex:1 1 auto;height:auto;max-height:none;
+    border-left:0;border-top:1px solid var(--baseline)}
+  #hud{font-size:11px;padding:6px 9px}
+  .fb-wrap{padding:0 16px}
+}
 .sec{border-bottom:1px solid var(--baseline);padding:12px 14px}
 .sec h2{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
   color:var(--muted);margin-bottom:9px}
@@ -1105,12 +1119,21 @@ function resize(){
   cv.width = Math.max(1,Math.round(r.width*dpr));
   cv.height = Math.max(1,Math.round(r.height*dpr));
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  VW = r.width; VH = r.height;
+  VW = Math.max(0, r.width); VH = Math.max(0, r.height);
 }
+/* the pane can be laid out at zero size (hidden tab, collapsed panel) */
+const canvasHasArea = () => VW > 8 && VH > 8;
 function fit(){
-  const pad = 26;
+  /* The padding used to be a flat 26 px, so any viewport under 52 px wide or
+     tall made (VW - 2*pad) negative and sc came out NEGATIVE. Every disk radius
+     is r*sc, so the first arc() threw "radius provided is negative", and because
+     that throw happened inside draw(), the drawChart() and paintReadouts() calls
+     after it never ran again — the HUD froze on stale values while the physics
+     carried on invisibly. That is the "it is online but the balls do not fill"
+     failure. Padding now scales with the viewport, and sc is clamped positive. */
   const w = Math.max(1e-6, BW()), h = Math.max(1e-6, BH());
-  sc = Math.min((VW-2*pad)/w, (VH-2*pad)/h);
+  const pad = Math.max(2, Math.min(26, Math.min(VW, VH)*0.06));
+  sc = Math.max(1e-6, Math.min((VW-2*pad)/w, (VH-2*pad)/h));
   ox = (VW - w*sc)/2 - S.box.x1*sc;
   oy = (VH + h*sc)/2 + S.box.y1*sc;   // y flipped: world y up, screen y down
 }
@@ -1138,6 +1161,7 @@ function colourOf(p, vmax, fmax){
 }
 
 function draw(){
+  if(!canvasHasArea()) return;      // nothing to draw into yet
   ctx.clearRect(0,0,VW,VH);
   fit();
 
@@ -1404,8 +1428,12 @@ function frame(t){
     if(S.hist.length > 460) S.hist.shift();
   }
 
-  draw();
-  drawChart();
+  /* Painting is isolated so a rendering hiccup can never stop the readouts.
+     Logged once, not per frame, so the console stays usable. */
+  try { draw(); drawChart(); }
+  catch(err){
+    if(!frame._warned){ frame._warned = true; console.error('render error:', err); }
+  }
   paintReadouts();
 
   fpsN++; fpsT += dtFrame;
@@ -1639,6 +1667,10 @@ const HINTS = {
 function updateHint(){ $('fHint').textContent = HINTS[$('fMethod').value]; fillCapacityNote(); }
 
 window.addEventListener('resize', ()=>{ resize(); });
+/* the panel can wrap or the pane can be resized without a window resize event */
+if(typeof ResizeObserver !== 'undefined'){
+  new ResizeObserver(()=>resize()).observe(cv.parentElement);
+}
 resize(); recomputeDt(); syncWallUI(); updateHint(); clearAll();
 
 /* ==========================================================================
