@@ -53,7 +53,12 @@ function send(res, code, body, type) {
     'Content-Type': type || 'text/plain; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Cache-Control': type === TYPES['.json'] ? 'no-store' : 'no-cache',
+    /* The app is one HTML file, so a stale copy of it is a stale copy of
+       everything — physics, UI and all. "no-cache" only asks for revalidation
+       and, with no ETag to revalidate against, behaviour varies by proxy. Say
+       no-store for HTML and JSON and leave no room for interpretation. */
+    'Cache-Control': (type === TYPES['.json'] || type === TYPES['.html'])
+      ? 'no-store, must-revalidate' : 'public, max-age=3600',
   });
   res.end(body);
 }

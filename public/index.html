@@ -44,6 +44,13 @@ header .tag{font-size:11px;color:var(--muted);border:1px solid var(--baseline);
 #hWalls tr.sel td:first-child::before{content:'\25B8 '}
 #badge{margin-top:5px;display:none;color:var(--ok);font-weight:600;letter-spacing:.04em;font-size:11px}
 #badge.on{display:block}
+#stalled{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(10,10,10,.93);padding:24px;text-align:center;z-index:5}
+#stalled.on{display:flex}
+#stalled div{max-width:440px}
+#stalled h3{color:var(--bad);font-size:15px;margin-bottom:8px}
+#stalled p{color:var(--ink2);font-size:12.5px;line-height:1.6;margin-bottom:8px}
+#stalled code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--accent)}
 #phase{position:absolute;bottom:12px;left:12px;font-size:12px;color:var(--accent);
   background:rgba(10,10,10,.72);border:1px solid var(--border);border-radius:6px;padding:5px 10px}
 
@@ -153,6 +160,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   <span class="tag" id="tagRate">— × real time</span>
   <div class="sp"></div>
   <span class="tag">Cundall–Strack soft-disk DEM</span>
+  <span class="tag" id="buildTag" title="build">build —</span>
 </header>
 
 <div id="main">
@@ -175,6 +183,13 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <div id="badge">✓ NO LOCKED-IN STRESS</div>
     </div>
     <div id="phase">idle</div>
+    <div id="stalled"><div>
+      <h3>The animation loop never started</h3>
+      <p>The physics and rendering are driven by <code>requestAnimationFrame</code>, and it has
+      not fired since this page loaded. Almost always this is a stale cached copy: reload with
+      <code>Ctrl+Shift+R</code> (<code>Cmd+Shift+R</code> on a Mac).</p>
+      <p>If it persists, open the console — the first error there is the cause.</p>
+    </div></div>
   </div>
 
   <div id="panel">
@@ -1395,8 +1410,14 @@ function maxOverlapPct(){
 
 /* ================================ loop ==================================== */
 let last = 0, fpsT = 0, fpsN = 0, histT = 0, slowT = 0;
+let frameCount = 0;   // watchdog: proves the loop is alive
 function frame(t){
   requestAnimationFrame(frame);
+  /* first real tick clears the watchdog, in case the loop merely started late */
+  if(++frameCount === 1){
+    const st = document.getElementById('stalled');
+    if(st) st.className = '';
+  }
   const dtFrame = Math.min(0.05,(t-last)/1000)||0.016;
   last = t;
 
@@ -1829,6 +1850,26 @@ const FB = {
   }
 };
 FB.init();
+
+/* Build stamp + loop watchdog.
+   "I click Fill and nothing happens" is indistinguishable, from the outside,
+   between a stale cached bundle, a render exception and a dead rAF. The stamp
+   answers "which build am I on" and the watchdog answers "is the loop alive",
+   so the next report arrives with the cause attached instead of the symptom. */
+const BUILD = '2026-09-03c';
+(function(){
+  const tag = document.getElementById('buildTag');
+  if(tag) tag.textContent = 'build ' + BUILD;
+  console.log('granularlab-2d build ' + BUILD);
+  setTimeout(()=>{
+    if(frameCount === 0){
+      const el = document.getElementById('stalled');
+      if(el) el.className = 'on';
+      console.error('granularlab-2d: requestAnimationFrame never fired. '+
+        'Build ' + BUILD + '. Stale cache or a startup exception.');
+    }
+  }, 2000);
+})();
 
 requestAnimationFrame(frame);
 </script>
