@@ -185,6 +185,45 @@ stayed at 874 px, scale unchanged at 1034.15.
 **Reset** restores every control, the box and the view to the values captured at
 page load.
 
+## Exporting data
+
+A measurement lab that cannot hand you its measurements is a toy, and this one
+had no export at all. Two buttons now:
+
+- **Summary CSV** — one row, 46 columns: every setting beside every measurement
+  (φ, Z, Z\*, rattlers, bed height, overlap, all eight wall normal and shear
+  forces, weight, bottom/W, side/W, K, both force-balance residuals, dt,
+  substeps, sim time). Repeated runs append into a table you can plot directly.
+- **Particles CSV** — one row per disk: position, radius, velocity, spin,
+  contacts, normal load. For analysing a packing offline.
+
+Both lead with the build and an ISO timestamp: a number you cannot trace back to
+a version is a number you cannot defend later.
+
+## Accessibility and polish
+
+- **22 control labels are bound** to their inputs with `for=`. None were before,
+  so screen readers could not associate them and clicking a label did nothing.
+  Verified: clicking a label focuses its control.
+- Three readouts that were marked up as `<label>` (box W×H, box area, selected
+  wall) are now spans — they label nothing.
+- **Favicon** (inline SVG: three disks in a box) and a meta description.
+- **A startup duplicate-id check** logs an error if any id appears twice. The
+  `bFill` collision cost a long debugging session precisely because
+  `getElementById` fails silently and every test that also uses it agrees with
+  the wrong element.
+
+## Auto-size is method-aware
+
+Sizing the box so the bed exactly reaches the lid conflicts with pluviation,
+which needs somewhere to rain grains from — deposition jammed a few grains short
+every time. **Auto-size** now leaves headroom (φ_box ≤ 0.62) when a pluviation
+method is selected and uses the full-box target for grow and lattice, which place
+particles throughout the box and do not care.
+
+Measured at N = 200, all four methods: **0 jams, all 200 placed**. Pluviation
+gets a 48 cm box, grow and lattice 41 cm.
+
 ## Feedback
 
 A full-width section at the bottom of the page collects **anonymous, timestamped**

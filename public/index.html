@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Granular Box — 2D Packing Lab</title>
+<meta name="description" content="A 2D discrete-element granular packing lab. Pour disks into a box, control friction and stiffness, and measure packing fraction, coordination number and wall forces.">
+<meta name="color-scheme" content="dark">
+<!-- inline SVG favicon: a few disks in a box, so the tab is identifiable -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0d0d'/%3E%3Crect x='4' y='4' width='24' height='24' fill='none' stroke='%23383835' stroke-width='2'/%3E%3Ccircle cx='11' cy='21' r='5' fill='%233987e5'/%3E%3Ccircle cx='21' cy='21' r='5' fill='%235bc98a'/%3E%3Ccircle cx='16' cy='12' r='5' fill='%23d95926'/%3E%3C/svg%3E">
 <style>
 :root{
   color-scheme: dark;
@@ -82,7 +86,7 @@ header .tag{font-size:11px;color:var(--muted);border:1px solid var(--baseline);
   color:var(--muted);margin-bottom:9px}
 .row{display:grid;grid-template-columns:1fr 96px 52px;gap:7px;align-items:center;margin-bottom:7px}
 .row.wide{grid-template-columns:1fr}
-.row label{font-size:12px;color:var(--ink2)}
+.row label,.row .rowlab{font-size:12px;color:var(--ink2)}
 .row .val{font-size:11px;color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}
 input[type=range]{width:100%;accent-color:var(--accent);height:18px;cursor:pointer}
 input[type=number],select{background:var(--surface2);color:var(--ink);border:1px solid var(--baseline);
@@ -222,19 +226,19 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
     <div class="sec">
       <h2>Particles</h2>
-      <div class="row"><label>count N</label>
+      <div class="row"><label for="pN">count N</label>
         <input type="number" id="pN" value="800" min="10" max="20000" step="10"><span class="val"></span></div>
-      <div class="row"><label>mean diameter d (mm)</label>
+      <div class="row"><label for="pD">mean diameter d (mm)</label>
         <input type="range" id="pD" min="0.002" max="0.06" step="0.0005" value="0.030"><span class="val" id="pDv">30.0</span></div>
-      <div class="row"><label>dispersity ±x (%)</label>
+      <div class="row"><label for="pX">dispersity ±x (%)</label>
         <input type="range" id="pX" min="0" max="40" step="1" value="15"><span class="val" id="pXv">15</span></div>
-      <div class="row"><label>friction μ</label>
+      <div class="row"><label for="pMu">friction μ</label>
         <input type="range" id="pMu" min="0" max="1" step="0.01" value="0.30"><span class="val" id="pMuv">0.30</span></div>
-      <div class="row"><label>wall friction μ<sub>w</sub></label>
+      <div class="row"><label for="pMuW">wall friction μ<sub>w</sub></label>
         <input type="range" id="pMuW" min="0" max="1" step="0.01" value="0"><span class="val" id="pMuWv">0.00</span></div>
-      <div class="row"><label>rolling resistance μ<sub>r</sub></label>
+      <div class="row"><label for="pMur">rolling resistance μ<sub>r</sub></label>
         <input type="range" id="pMur" min="0" max="0.2" step="0.005" value="0.02"><span class="val" id="pMurv">0.020</span></div>
-      <div class="row"><label>density ρ (kg/m³)</label>
+      <div class="row"><label for="pRho">density ρ (kg/m³)</label>
         <input type="range" id="pRho" min="500" max="5000" step="50" value="2500"><span class="val" id="pRhov">2500</span></div>
       <div class="hint">Diameters are drawn uniformly from d(1±x). x = 0 gives a monodisperse
       packing, which crystallises readily; 10–20% suppresses it.
@@ -248,15 +252,15 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
     <div class="sec">
       <h2>Contact model</h2>
-      <div class="row"><label>normal spring k<sub>n</sub> (N/m)</label>
+      <div class="row"><label for="cKn">normal spring k<sub>n</sub> (N/m)</label>
         <input type="range" id="cKn" min="4" max="8" step="0.05" value="6.30"><span class="val" id="cKnv">2.0e6</span></div>
-      <div class="row"><label>tangential k<sub>t</sub> / k<sub>n</sub></label>
+      <div class="row"><label for="cKt">tangential k<sub>t</sub> / k<sub>n</sub></label>
         <input type="range" id="cKt" min="0.05" max="1.5" step="0.05" value="0.80"><span class="val" id="cKtv">0.80</span></div>
-      <div class="row"><label>contact damping ζ</label>
+      <div class="row"><label for="cZeta">contact damping ζ</label>
         <input type="range" id="cZeta" min="0" max="1" step="0.01" value="0.25"><span class="val" id="cZetav">0.25</span></div>
-      <div class="row"><label>velocity damping b (1/s)</label>
+      <div class="row"><label for="cBv">velocity damping b (1/s)</label>
         <input type="range" id="cBv" min="0" max="20" step="0.1" value="2.0"><span class="val" id="cBvv">2.0</span></div>
-      <div class="row"><label>gravity g (m/s²)</label>
+      <div class="row"><label for="cG">gravity g (m/s²)</label>
         <input type="range" id="cG" min="0" max="20" step="0.1" value="9.81"><span class="val" id="cGv">9.81</span></div>
       <div class="hint">ζ is a damping ratio: γ = 2ζ√(m<sub>eff</sub>k). ζ = 0 is perfectly elastic,
       ζ = 1 critically damped. b is background drag on every particle, independent of contact.
@@ -270,27 +274,27 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
     <div class="sec">
       <h2>Box &amp; filling</h2>
-      <div class="row"><label>wall X1 &nbsp;left <span style="color:var(--muted)">cm</span></label>
+      <div class="row"><label for="wX1">wall X1 &nbsp;left <span style="color:var(--muted)">cm</span></label>
         <input type="range" id="wX1" min="-150" max="350" step="0.1" value="0"><span class="val" id="wX1v">0.000</span></div>
-      <div class="row"><label>wall X2 &nbsp;right <span style="color:var(--muted)">cm</span></label>
+      <div class="row"><label for="wX2">wall X2 &nbsp;right <span style="color:var(--muted)">cm</span></label>
         <input type="range" id="wX2" min="-150" max="350" step="0.1" value="82"><span class="val" id="wX2v">0.820</span></div>
-      <div class="row"><label>wall Y1 &nbsp;floor <span style="color:var(--muted)">cm</span></label>
+      <div class="row"><label for="wY1">wall Y1 &nbsp;floor <span style="color:var(--muted)">cm</span></label>
         <input type="range" id="wY1" min="-150" max="350" step="0.1" value="0"><span class="val" id="wY1v">0.000</span></div>
-      <div class="row"><label>wall Y2 &nbsp;lid <span style="color:var(--muted)">cm</span></label>
+      <div class="row"><label for="wY2">wall Y2 &nbsp;lid <span style="color:var(--muted)">cm</span></label>
         <input type="range" id="wY2" min="-150" max="350" step="0.1" value="82"><span class="val" id="wY2v">0.820</span></div>
-      <div class="row"><label>box W × H (cm)</label><span></span><span class="val" id="bWH">82.0 × 82.0</span></div>
-      <div class="row"><label>box area (cm²)</label><span></span><span class="val" id="bArea">6724</span></div>
-      <div class="row"><label>selected wall</label><span></span><span class="val" id="bSel">none</span></div>
+      <div class="row"><span class="rowlab">box W × H (cm)</span><span></span><span class="val" id="bWH">82.0 × 82.0</span></div>
+      <div class="row"><span class="rowlab">box area (cm²)</span><span></span><span class="val" id="bArea">6724</span></div>
+      <div class="row"><span class="rowlab">selected wall</span><span></span><span class="val" id="bSel">none</span></div>
       <div class="hint">Drag a wall directly in the view — the cursor changes over one.
       Moving a wall inward compresses whatever is in the way, so the wall-force panel
       responds live; that is the quickest way to see locked-in stress appear.</div>
-      <div class="row"><label>target fill φ<sub>box</sub></label>
+      <div class="row"><label for="fTarget">target fill φ<sub>box</sub></label>
         <input type="range" id="fTarget" min="0.40" max="0.86" step="0.01" value="0.84"><span class="val" id="fTargetv">0.84</span></div>
       <div class="row wide">
         <button id="bAuto" type="button">Size box so the balls fill it</button></div>
       <div class="hint" id="capHint"></div>
       <div class="row wide" style="margin-top:8px">
-        <label style="margin-bottom:4px">filling method</label>
+        <label style="margin-bottom:4px" for="fMethod">filling method</label>
         <select id="fMethod">
           <option value="lattice">Lattice release — loosest at ±x, crystallises at ±0</option>
           <option value="rain" selected>Pluviation, friction on — LOOSE (φ≈0.828)</option>
@@ -298,7 +302,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
           <option value="rainSmooth">Pluviation, frictionless — DENSE (φ≈0.845)</option>
         </select>
       </div>
-      <div class="row"><label>deposition rate (/s)</label>
+      <div class="row"><label for="fRate">deposition rate (/s)</label>
         <input type="range" id="fRate" min="20" max="1200" step="10" value="300"><span class="val" id="fRatev">300</span></div>
       <div class="hint" id="fHint"></div>
     </div>
@@ -315,6 +319,19 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         <tr><td>solid area / box area</td><td id="mFill">–</td></tr>
         <tr><td>grain size achieved</td><td id="mGrain">–</td></tr>
       </table>
+    </div>
+
+    <div class="sec">
+      <h2>Export</h2>
+      <div class="btns">
+        <button id="expSummary" type="button">Summary CSV</button>
+        <button id="expParticles" type="button">Particles CSV</button>
+      </div>
+      <div class="hint"><b>Summary</b> is one row — every setting beside every
+      measurement — so repeated runs append into a table you can plot straight away.
+      <b>Particles</b> is one row per disk (position, radius, velocity, spin,
+      contacts, load) for analysing a packing offline. Both carry the build and a
+      timestamp, so a row can always be traced back to the code that produced it.</div>
     </div>
 
     <div class="sec">
@@ -361,11 +378,11 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
           <option value="force">colour by contact force</option>
         </select>
       </div>
-      <div class="row" style="margin-top:7px"><label>show rotation marks</label>
+      <div class="row" style="margin-top:7px"><label for="dSpin">show rotation marks</label>
         <input type="checkbox" id="dSpin" checked><span class="val"></span></div>
-      <div class="row"><label>show measurement region</label>
+      <div class="row"><label for="dRegion">show measurement region</label>
         <input type="checkbox" id="dRegion"><span class="val"></span></div>
-      <div class="row"><label>show contact network</label>
+      <div class="row"><label for="dNet">show contact network</label>
         <input type="checkbox" id="dNet"><span class="val"></span></div>
     </div>
 
@@ -437,7 +454,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-05a';
+const BUILD = '2026-09-05b';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1669,9 +1686,16 @@ window.addEventListener('touchend', endDrag);
 
 $('bAuto').addEventListener('click', ()=>{
   /* Solve L from the target fill: the settled bed reaches the lid when
-     N·a_grain = φ·L², so L = √(N·a_grain/φ). At φ = 0.84 the balls fill the box
-     with no dead space; dial φ down to buy headroom for pluviation. */
-  const side = clamp(+sizeForN(S.fillTarget).toFixed(2), 0.2, 4);
+     N·a_grain = φ·L², so L = √(N·a_grain/φ).
+
+     Method-aware, because the two requirements genuinely conflict. Pluviation
+     rains grains from above and needs somewhere to rain FROM; a box sized so the
+     bed exactly reaches the lid leaves no such space, and deposition jams a few
+     grains short every time. Grow and lattice place particles throughout the box
+     and do not care, so they get the full-box target. */
+  const target = needsHeadroom($('fMethod').value)
+    ? Math.min(S.fillTarget, 0.62) : S.fillTarget;
+  const side = clamp(+sizeForN(target).toFixed(2), 0.2, 4);
   setWallNow('x2', S.boxT.x1 + side);  // grow from the lower-left corner
   setWallNow('y2', S.boxT.y1 + side);
   syncWallUI();
@@ -1679,6 +1703,75 @@ $('bAuto').addEventListener('click', ()=>{
 });
 
 $('bFit').addEventListener('click', fitView);
+
+/* ---------------------------------------------------------------- export --
+   A measurement lab that cannot hand you its measurements is a toy. Both files
+   lead with the build and a timestamp: a number you cannot trace to a version
+   is a number you cannot defend later. */
+function csvCell(v){
+  if(v === null || v === undefined) return '';
+  const t = String(v);
+  return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t;
+}
+function downloadCSV(name, rows){
+  const text = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([text], {type:'text/csv;charset=utf-8'}));
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);   // let the download start first
+}
+const stamp = () => new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+const r6 = v => (typeof v === 'number' && isFinite(v)) ? +v.toFixed(6) : v;
+
+function summaryRow(){
+  const b = S.box, m = S.meas, W = totalWeight();
+  const bedH = Math.max(1e-9, m.h - b.y1);
+  const imb = S.wall.L - S.wall.R;
+  return {
+    build: BUILD, at: new Date().toISOString(),
+    method: $('fMethod').value, phase: S.phase,
+    particles: S.P.length, N_target: S.N,
+    d_mm: r6(S.d*1000), dispersity_pct: r6(S.x*100),
+    mu: S.mu, mu_wall: S.muW, mu_roll: S.mur, rho_kg_m3: S.rho,
+    kn_N_m: r6(S.kn), kt_over_kn: S.ktRatio, zeta: S.zeta,
+    vel_damping_1_s: S.bv, gravity_m_s2: S.g,
+    box_x1_cm: r6(b.x1*100), box_x2_cm: r6(b.x2*100),
+    box_y1_cm: r6(b.y1*100), box_y2_cm: r6(b.y2*100),
+    box_W_cm: r6(BW()*100), box_H_cm: r6(BH()*100),
+    phi: r6(m.phi), Z: r6(m.Z), Z_star: r6(m.Zs), rattler_frac: r6(m.rat),
+    bed_height_cm: r6(bedH*100), max_overlap_pct_d: r6(S.overlapPct),
+    X1_normal_N: r6(S.wall.L), X2_normal_N: r6(S.wall.R),
+    Y1_normal_N: r6(S.wall.B), Y2_normal_N: r6(S.wall.T),
+    X1_shear_N: r6(S.shear.L), X2_shear_N: r6(S.shear.R),
+    Y1_shear_N: r6(S.shear.B), Y2_shear_N: r6(S.shear.T),
+    weight_N: r6(W),
+    bottom_over_W: W>0 ? r6(S.wall.B/W) : '',
+    side_over_W: W>0 ? r6((S.wall.L+S.wall.R)/W) : '',
+    K_eff: (W>0 && bedH>0) ? r6((S.wall.L+S.wall.R)*BW()/(W*bedH)) : '',
+    residual_x_over_W: W>0 ? r6((imb + S.shear.B - S.shear.T)/W) : '',
+    residual_y_over_W: W>0 ? r6((S.wall.B - S.wall.T - S.shear.L + S.shear.R - W)/W) : '',
+    dt_s: S.dt, substeps: S.sub, sim_time_s: r6(S.t)
+  };
+}
+$('expSummary').addEventListener('click', ()=>{
+  const row = summaryRow();
+  downloadCSV('granularlab-summary-'+stamp()+'.csv',
+              [Object.keys(row), Object.values(row)]);
+});
+$('expParticles').addEventListener('click', ()=>{
+  if(!S.P.length){
+    const ph = $('phase');
+    if(ph){ ph.textContent = 'nothing to export — fill the box first'; ph.style.color = 'var(--warn)'; }
+    return;
+  }
+  const head = ['# build', BUILD, 'at', new Date().toISOString(),
+                'particles', S.P.length, 'method', $('fMethod').value];
+  const rows = [head, ['i','x_m','y_m','r_m','vx_m_s','vy_m_s','omega_rad_s','contacts','normal_load_N']];
+  S.P.forEach((p,i)=> rows.push([i, r6(p.x), r6(p.y), r6(p.r), r6(p.vx), r6(p.vy),
+                                 r6(p.w), p.nc, r6(p.fsum)]));
+  downloadCSV('granularlab-particles-'+stamp()+'.csv', rows);
+});
 
 /* Everything back to how the page loaded. Snapshotted after init so it reflects
    the real starting values, rather than a second hand-maintained list that can
@@ -1939,6 +2032,16 @@ FB.init();
   const tag = document.getElementById('buildTag');
   if(tag) tag.textContent = 'build ' + BUILD;
   console.log('granularlab-2d build ' + BUILD);
+  /* A duplicate id cost this project a long debugging session: getElementById
+     silently returns the first match, so a handler can attach to entirely the
+     wrong element and every test that also uses getElementById agrees with it.
+     Shout about it at startup rather than discovering it by behaviour. */
+  const seen = new Set(), dupes = new Set();
+  document.querySelectorAll('[id]').forEach(el => {
+    if(seen.has(el.id)) dupes.add(el.id); else seen.add(el.id);
+  });
+  if(dupes.size) console.error('DUPLICATE ELEMENT IDs:', [...dupes].join(', '),
+    '- getElementById returns only the first, so listeners may be on the wrong element.');
   setTimeout(()=>{
     if(frameCount === 0){
       const el = document.getElementById('stalled');
