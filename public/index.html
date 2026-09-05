@@ -213,6 +213,8 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <div class="btns">
         <button id="bPause" type="button">❙❙ Pause</button>
         <button id="bStep" type="button">Step</button>
+        <button id="bFit" type="button" title="Re-frame the view around the box">Fit view</button>
+        <button id="bReset" type="button" title="All settings back to defaults">Reset</button>
       </div>
     </div>
 
@@ -281,7 +283,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       Moving a wall inward compresses whatever is in the way, so the wall-force panel
       responds live; that is the quickest way to see locked-in stress appear.</div>
       <div class="row"><label>target fill φ<sub>box</sub></label>
-        <input type="range" id="bFill" min="0.40" max="0.86" step="0.01" value="0.84"><span class="val" id="bFillv">0.84</span></div>
+        <input type="range" id="fTarget" min="0.40" max="0.86" step="0.01" value="0.84"><span class="val" id="fTargetv">0.84</span></div>
       <div class="row wide">
         <button id="bAuto" type="button">Size box so the balls fill it</button></div>
       <div class="hint" id="capHint"></div>
@@ -1147,10 +1149,11 @@ function resize(){
   cv.height = Math.max(1,Math.round(r.height*dpr));
   ctx.setTransform(dpr,0,0,dpr,0,0);
   VW = Math.max(0, r.width); VH = Math.max(0, r.height);
+  fitView();     // the canvas itself changed size; reframing is expected
 }
 /* the pane can be laid out at zero size (hidden tab, collapsed panel) */
 const canvasHasArea = () => VW > 8 && VH > 8;
-function fit(){
+function fitView(){
   /* The padding used to be a flat 26 px, so any viewport under 52 px wide or
      tall made (VW - 2*pad) negative and sc came out NEGATIVE. Every disk radius
      is r*sc, so the first arc() threw "radius provided is negative", and because
@@ -1190,7 +1193,7 @@ function colourOf(p, vmax, fmax){
 function draw(){
   if(!canvasHasArea()) return;      // nothing to draw into yet
   ctx.clearRect(0,0,VW,VH);
-  fit();
+  /* deliberately no refit here - the view stays put while walls move */
 
   /* box */
   ctx.save();
@@ -1498,7 +1501,7 @@ bind('cKt','ktRatio','cKtv', v=>v.toFixed(2), recomputeDt);
 bind('cZeta','zeta','cZetav', v=>v.toFixed(2));
 bind('cBv','bv','cBvv', v=>v.toFixed(1));
 bind('cG','g','cGv', v=>v.toFixed(2), ()=>{ if(S.phase!=='unloading') S.gActive=S.g; });
-bind('bFill','fillTarget','bFillv', v=>v.toFixed(2), fillCapacityNote);
+bind('fTarget','fillTarget','fTargetv', v=>v.toFixed(2), fillCapacityNote);
 
 /* kn slider is log10 */
 $('cKn').addEventListener('input', e=>{
@@ -1668,6 +1671,43 @@ $('bAuto').addEventListener('click', ()=>{
   fillCapacityNote();
 });
 
+$('bFit').addEventListener('click', fitView);
+
+/* Everything back to how the page loaded. Snapshotted after init so it reflects
+   the real starting values, rather than a second hand-maintained list that can
+   drift away from them. */
+let DEFAULTS = null;
+function captureDefaults(){
+  DEFAULTS = {
+    ranges: {pN:S.N, pD:S.d, pX:S.x*100, pMu:S.mu, pMuW:S.muW, pMur:S.mur,
+             pRho:S.rho, cKn:Math.log10(S.kn), cKt:S.ktRatio, cZeta:S.zeta,
+             cBv:S.bv, cG:S.g, fTarget:S.fillTarget, fRate:S.rate},
+    selects: {fMethod:$('fMethod').value, dColor:$('dColor').value},
+    checks:  {dSpin:$('dSpin').checked, dRegion:$('dRegion').checked, dNet:$('dNet').checked},
+    box: {...S.box}
+  };
+}
+/* Drive each control through its own listener instead of writing S directly:
+   one source of truth for formatting, and the readouts stay in step. */
+function setControl(id, value, kind){
+  const el = $(id); if(!el) return;
+  if(kind === 'check') el.checked = value; else el.value = value;
+  el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', {bubbles:true}));
+}
+function resetAll(){
+  if(!DEFAULTS) return;
+  for(const [id,v] of Object.entries(DEFAULTS.ranges))  setControl(id, v);
+  for(const [id,v] of Object.entries(DEFAULTS.selects)) setControl(id, v);
+  for(const [id,v] of Object.entries(DEFAULTS.checks))  setControl(id, v, 'check');
+  /* set target AND actual so a reset lands at once instead of sweeping there */
+  for(const k of ['x1','x2','y1','y2']){ S.boxT[k]=DEFAULTS.box[k]; S.box[k]=DEFAULTS.box[k]; }
+  PL.valid = false; S.sel = null; S.drag = null;
+  syncWallUI(); clearAll(); fitView(); fillCapacityNote(); updateHint();
+  const ph = $('phase');
+  if(ph){ ph.textContent = 'reset to defaults'; ph.style.color = 'var(--accent)'; }
+}
+$('bReset').addEventListener('click', resetAll);
+
 $('bFill').addEventListener('click', ()=>{
   /* Visible acknowledgement the instant the handler runs. Without it a click
      that registered but is waiting on a slow first frame looks identical to a
@@ -1711,7 +1751,7 @@ window.addEventListener('resize', ()=>{ resize(); });
 if(typeof ResizeObserver !== 'undefined'){
   new ResizeObserver(()=>resize()).observe(cv.parentElement);
 }
-resize(); recomputeDt(); syncWallUI(); updateHint(); clearAll();
+resize(); recomputeDt(); syncWallUI(); updateHint(); clearAll(); captureDefaults();
 
 /* ==========================================================================
    FEEDBACK — anonymous, timestamped, stored server-side in SQLite.
@@ -1875,7 +1915,7 @@ FB.init();
    between a stale cached bundle, a render exception and a dead rAF. The stamp
    answers "which build am I on" and the watchdog answers "is the loop alive",
    so the next report arrives with the cause attached instead of the symptom. */
-const BUILD = '2026-09-04a';
+const BUILD = '2026-09-04b';
 (function(){
   const tag = document.getElementById('buildTag');
   if(tag) tag.textContent = 'build ' + BUILD;

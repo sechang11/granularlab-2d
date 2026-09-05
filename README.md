@@ -154,6 +154,37 @@ Fill / Tap / Unload / Clear / Pause / Step are now in a **sticky bar pinned to
 the top of the panel**. Verified: they sit 12 px from the panel top whether it is
 scrolled to the top or all the way to the bottom (scrollTop 2204).
 
+## The Fill button had no handler
+
+`id="bFill"` was on **two** elements: the Fill button and the target-fill slider.
+`getElementById` returns the first in document order, so
+`$('bFill').addEventListener('click', startFill)` attached the Fill handler to
+the *slider*. The button was never wired at all.
+
+Every symptom follows from that. A real click on Fill did nothing. A
+programmatic `document.getElementById('bFill').click()` worked, because it
+resolved to the slider, which owned the handler — which is why it looked fine
+under test and broken in use. Occasionally touching the slider started a fill,
+producing a stray "settling" with no obvious cause. Adding the sticky action bar
+put the button first in the DOM, which moved the collision rather than removing
+it: Fill started working and the target-fill slider went dead.
+
+The slider is now `fTarget`. Worth a lint rule; a duplicate id fails silently
+and misdirects for a long time.
+
+## The view no longer follows the box
+
+`fit()` recomputed the scale from the box every frame, so the view tracked the
+box: drag Y2 down, the box gets shorter, the scale grows to compensate, and the
+**X walls visibly slide apart though x1 and x2 never moved**.
+
+The mapping is now fixed until the canvas resizes or **Fit view** is pressed.
+Measured on a 30 cm Y2 drag: box 0.82×0.82 → 0.82×0.22, X1 stayed at 26 px, X2
+stayed at 874 px, scale unchanged at 1034.15.
+
+**Reset** restores every control, the box and the view to the values captured at
+page load.
+
 ## Feedback
 
 A full-width section at the bottom of the page collects **anonymous, timestamped**
