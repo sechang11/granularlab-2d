@@ -124,7 +124,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 #fbForm textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .fb-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .fb-row{display:flex;align-items:center;gap:14px;margin-top:10px;flex-wrap:wrap}
-.fb-check{font-size:12.5px;color:var(--ink2);display:flex;align-items:center;gap:7px;cursor:pointer}
+.fb-check{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:7px}
 .fb-peek{color:var(--accent);text-decoration:underline;cursor:pointer;font-size:12px}
 .fb-count{font-size:11.5px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
 #fbCtxView{background:var(--page);border:1px solid var(--baseline);border-radius:6px;
@@ -149,6 +149,8 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 #fbList .fb-ctx pre{margin-top:6px;background:var(--surface2);border:1px solid var(--baseline);
   border-radius:5px;padding:8px 10px;font-family:ui-monospace,Consolas,monospace;
   font-size:11px;color:var(--ink2);white-space:pre-wrap;word-break:break-word;max-height:170px;overflow:auto}
+#fbList .fb-build{border:1px solid var(--baseline);border-radius:9px;padding:0 7px;
+  color:var(--accent);font-family:ui-monospace,Consolas,monospace;font-size:10.5px}
 #fbList .fb-del{margin-left:auto;background:transparent;border:1px solid var(--baseline);
   color:var(--muted);border-radius:5px;padding:1px 8px;font-size:11px;cursor:pointer}
 #fbList .fb-del:hover{border-color:var(--bad);color:var(--bad)}
@@ -374,17 +376,18 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   <div class="fb-wrap">
     <h2>Notes &amp; feedback</h2>
     <p class="fb-sub">Anonymous and timestamped. Nothing about who you are is recorded —
-    no name, no account, no address kept. Tell us what looked wrong, what was confusing,
-    or what you want next.</p>
+    no name, no account, no address kept. Your current settings and the build version
+    are attached automatically, so a note can always be reproduced; press
+    <b>show</b> to see exactly what that includes.</p>
 
     <form id="fbForm" autocomplete="off">
       <textarea id="fbBody" rows="4" maxlength="4000"
-        placeholder="What did you notice? If it is about a specific result, tick the box below and the current settings travel with your note."></textarea>
+        placeholder="What did you notice? Your settings travel with the note, so you can just describe what you saw."></textarea>
       <!-- honeypot: hidden from people, irresistible to bots -->
       <div class="fb-hp"><label>Website<input type="text" id="fbHp" tabindex="-1"></label></div>
       <div class="fb-row">
-        <label class="fb-check"><input type="checkbox" id="fbCtx" checked>
-          attach the current settings <span class="fb-peek" id="fbPeek">show</span></label>
+        <span class="fb-check">Your settings and build version are attached
+          <span class="fb-peek" id="fbPeek">show</span></span>
         <span class="fb-count"><span id="fbCount">0</span>/4000</span>
         <button type="submit" class="primary" id="fbSend">Send note</button>
       </div>
@@ -431,6 +434,10 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
    Integration is semi-implicit (symplectic) Euler; dt is derived from the
    stiffest contact each time the parameters change.
    =========================================================================== */
+
+/* Declared up here because the feedback context reads it, and a note whose
+   build is unknown is a note you cannot act on. */
+const BUILD = '2026-09-05a';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1766,6 +1773,8 @@ const FB = {
   context(){
     const b = S.box, m = S.meas;
     return {
+      build: BUILD,
+      at: new Date().toISOString(),
       particles: S.P.length, N_target: S.N,
       grain_mm: +(S.d*1000).toFixed(2), dispersity_pct: +(S.x*100).toFixed(0),
       mu: S.mu, mu_wall: S.muW, mu_roll: S.mur, density: S.rho,
@@ -1825,7 +1834,15 @@ const FB = {
       const ctx = it.context
         ? '<details class="fb-ctx"><summary>settings at the time</summary><pre>'
           + this.esc(it.context) + '</pre></details>' : '';
-      return '<li><div class="fb-when">'+this.when(it.created_at)+del+'</div>'
+      /* Pull the build out of the attached context and show it on the row, so
+         "which version was this about" needs no clicking. Notes from before the
+         build was attached simply show nothing. */
+      let build = '';
+      try {
+        const b = it.context && JSON.parse(it.context).build;
+        if(b) build = '<span class="fb-build">' + this.esc(b) + '</span>';
+      } catch {}
+      return '<li><div class="fb-when">'+this.when(it.created_at)+build+del+'</div>'
            + '<div class="fb-text">'+this.esc(it.body)+'</div>'+ctx+'</li>';
     }).join('');
     list.querySelectorAll('.fb-del').forEach(b =>
@@ -1843,7 +1860,10 @@ const FB = {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           body,
-          context: this.el('fbCtx').checked ? this.ctxText() : null,
+          /* Always attached, never optional. A note without the settings that
+             produced it cannot be reproduced, and the build version says whether
+             the reader is even looking at the same code. */
+          context: this.ctxText(),
           website: this.el('fbHp').value        // honeypot
         })
       });
@@ -1915,7 +1935,6 @@ FB.init();
    between a stale cached bundle, a render exception and a dead rAF. The stamp
    answers "which build am I on" and the watchdog answers "is the loop alive",
    so the next report arrives with the cause attached instead of the symptom. */
-const BUILD = '2026-09-04b';
 (function(){
   const tag = document.getElementById('buildTag');
   if(tag) tag.textContent = 'build ' + BUILD;

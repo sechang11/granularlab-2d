@@ -188,11 +188,17 @@ page load.
 ## Feedback
 
 A full-width section at the bottom of the page collects **anonymous, timestamped**
-notes into SQLite. No name, no account, no IP is stored — the only optional extra
-is a snapshot of the simulation settings, which is the whole reason to collect
-this in the page rather than by email: "the wall force looks wrong" is
-unactionable, the same sentence with N, mu, k_n and the box dimensions attached
-is reproducible in thirty seconds.
+notes into SQLite. No name, no account, no IP is stored.
+
+**The settings snapshot is mandatory, not optional.** It was a checkbox; it is
+now always attached, and it carries the **build version** as well. A note whose
+settings are missing cannot be reproduced, and one whose build is unknown may not
+even describe the code you are looking at — this session lost a lot of time to
+exactly that. Every note now answers both questions on arrival.
+
+The build is shown as a chip on each note in the list, so "which version was this
+about" needs no clicking. Press **show** above the send button to see precisely
+what travels with a note; nothing is hidden.
 
 Spam defences: a honeypot field, a 5-per-10-minutes per-IP rate limit (held in
 memory, never written), and a 4000-character cap.
