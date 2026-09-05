@@ -205,14 +205,14 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
     <div class="sec actions">
       <div class="btns">
-        <button class="primary" id="bFill">Fill</button>
-        <button id="bTap">Tap</button>
-        <button id="bUnload">Unload</button>
-        <button id="bClear">Clear</button>
+        <button class="primary" id="bFill" type="button">Fill</button>
+        <button id="bTap" type="button">Tap</button>
+        <button id="bUnload" type="button">Unload</button>
+        <button id="bClear" type="button">Clear</button>
       </div>
       <div class="btns">
-        <button id="bPause">❙❙ Pause</button>
-        <button id="bStep">Step</button>
+        <button id="bPause" type="button">❙❙ Pause</button>
+        <button id="bStep" type="button">Step</button>
       </div>
     </div>
 
@@ -283,7 +283,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <div class="row"><label>target fill φ<sub>box</sub></label>
         <input type="range" id="bFill" min="0.40" max="0.86" step="0.01" value="0.84"><span class="val" id="bFillv">0.84</span></div>
       <div class="row wide">
-        <button id="bAuto">Size box so the balls fill it</button></div>
+        <button id="bAuto" type="button">Size box so the balls fill it</button></div>
       <div class="hint" id="capHint"></div>
       <div class="row wide" style="margin-top:8px">
         <label style="margin-bottom:4px">filling method</label>
@@ -1668,7 +1668,14 @@ $('bAuto').addEventListener('click', ()=>{
   fillCapacityNote();
 });
 
-$('bFill').addEventListener('click', startFill);
+$('bFill').addEventListener('click', ()=>{
+  /* Visible acknowledgement the instant the handler runs. Without it a click
+     that registered but is waiting on a slow first frame looks identical to a
+     click that never landed. */
+  const ph = $('phase');
+  if(ph){ ph.textContent = 'Fill pressed…'; ph.style.color = 'var(--accent)'; }
+  startFill();
+});
 $('bTap').addEventListener('click', tap);
 $('bUnload').addEventListener('click', unload);
 $('bClear').addEventListener('click', clearAll);
@@ -1774,7 +1781,7 @@ const FB = {
     }
     list.innerHTML = items.map(it => {
       const del = this.token
-        ? '<button class="fb-del" data-id="'+it.id+'">delete</button>' : '';
+        ? '<button class="fb-del" data-id="'+it.id+'" type="button">delete</button>' : '';
       const ctx = it.context
         ? '<details class="fb-ctx"><summary>settings at the time</summary><pre>'
           + this.esc(it.context) + '</pre></details>' : '';
@@ -1868,7 +1875,7 @@ FB.init();
    between a stale cached bundle, a render exception and a dead rAF. The stamp
    answers "which build am I on" and the watchdog answers "is the loop alive",
    so the next report arrives with the cause attached instead of the symptom. */
-const BUILD = '2026-09-03c';
+const BUILD = '2026-09-04a';
 (function(){
   const tag = document.getElementById('buildTag');
   if(tag) tag.textContent = 'build ' + BUILD;
