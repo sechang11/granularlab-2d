@@ -142,6 +142,18 @@ container, since the panel can wrap without a window resize event.
 Verified at 1440, 1024, 820, 400 and 320 px wide: scale positive, no throw, and
 a 400-ball fill renders with the HUD live.
 
+## Panel layout
+
+The controls panel scrolls independently of the page and is ~2800 px tall. At a
+700 px window the panel shows 636 px, so **Fill sat 1162 px down — 526 px below
+the fold**, reachable only by scrolling inside the panel, which is easy to miss
+entirely. Every explanatory hint added to the Particles and Contact Model
+sections pushed it further down.
+
+Fill / Tap / Unload / Clear / Pause / Step are now in a **sticky bar pinned to
+the top of the panel**. Verified: they sit 12 px from the panel top whether it is
+scrolled to the top or all the way to the bottom (scrollTop 2204).
+
 ## Feedback
 
 A full-width section at the bottom of the page collects **anonymous, timestamped**
