@@ -224,6 +224,47 @@ particles throughout the box and do not care.
 Measured at N = 200, all four methods: **0 jams, all 200 placed**. Pluviation
 gets a 48 cm box, grow and lattice 41 cm.
 
+## Controls: typed values, applied live
+
+Every numeric control now has a **number box beside its slider**. Both drive the
+same setter through one spec table, so they cannot disagree, and an exact value
+can always be typed — a slider alone is far too coarse for k_n or a wall position.
+k_n keeps a logarithmic slider (it spans four decades) while its box holds the
+plain number.
+
+**Everything applies to the running model immediately**, including density, which
+re-derives every particle's mass and inertia in place. The three exceptions are
+labelled *next fill* in the UI: N, d and ±x decide *which grains exist*, so
+changing them mid-run would mean inventing or deleting grains rather than
+adjusting the experiment.
+
+This refactor made state the single source of truth for defaults and immediately
+exposed two that had drifted: `kn` was `2.0e4` in state while its slider showed
+`2.0e6` (soft enough for 40%+ contact overlap), and `bv` was 0.5 against 2.0. A
+startup check now warns when a slider's authored value disagrees with state.
+
+## Why phi moved after Pause
+
+It was not the simulation. `samplePhi` is a **Monte-Carlo estimate** — it throws
+random points and counts hits — and it ran on a timer regardless of whether
+anything was moving. Re-rolling an unchanged packing gives a slightly different
+answer each time. Measured on a frozen packing: 0.8265–0.8327 across eight
+samples, sd 0.0018 against a theoretical s.e. of 0.0024.
+
+Re-sampling now happens only when something has actually changed. When the bed
+goes quiet it takes one final pass at four times the sample count (half the
+noise, and it costs nothing because it happens once), then holds. Pause states
+plainly: **PAUSED — physics and readouts frozen**.
+
+## Glossary, readout overlay, text size
+
+- **? Glossary** in the header explains all 24 symbols — t, φ, Z, Z\*, /W, K,
+  shear, residual, overlap, k_n, ζ, b, μ_w — grouped by where they appear.
+  In-page rather than a separate route: it is a single-file app, and help you
+  must navigate away to read is help you will not read.
+- **Hide readouts** collapses the HUD when it covers the packing. Remembered.
+- **Text size** S/M/L/XL in the header. Remembered.
+
 ## Feedback
 
 A full-width section at the bottom of the page collects **anonymous, timestamped**

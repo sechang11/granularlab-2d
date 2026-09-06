@@ -32,6 +32,30 @@ header h1 span{color:var(--accent)}
 header .sp{flex:1}
 header .tag{font-size:11px;color:var(--muted);border:1px solid var(--baseline);
   padding:2px 8px;border-radius:10px}
+.tagbtn{background:transparent;cursor:pointer;font-family:inherit}
+.tagbtn:hover{border-color:var(--accent);color:var(--ink)}
+#uiScale{background:var(--surface2);color:var(--ink2);border:0;font:inherit;
+  font-size:11px;margin-left:4px;cursor:pointer}
+
+/* The readouts sit over the packing and can obscure it, so they collapse. */
+#hud.hidden{display:none}
+
+/* Glossary overlay */
+#help{position:fixed;inset:0;z-index:50;background:rgba(6,6,6,.82);
+  display:none;align-items:flex-start;justify-content:center;padding:5vh 18px;overflow-y:auto}
+#help.on{display:flex}
+#helpBox{background:var(--surface);border:1px solid var(--baseline);border-radius:10px;
+  max-width:780px;width:100%;padding:22px 26px 28px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#helpBox h2{font-size:17px;font-weight:600;margin-bottom:4px}
+#helpBox p.lead{color:var(--muted);font-size:13px;margin-bottom:16px;max-width:70ch}
+#helpBox h3{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin:18px 0 7px;border-bottom:1px solid var(--baseline);padding-bottom:5px}
+#helpBox dl{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;font-size:13px}
+#helpBox dt{color:var(--accent);font-family:ui-monospace,Consolas,monospace;white-space:nowrap}
+#helpBox dd{color:var(--ink2);margin:0}
+#helpClose{float:right;background:transparent;border:1px solid var(--baseline);
+  color:var(--ink2);border-radius:6px;padding:3px 10px;cursor:pointer;font:inherit;font-size:12px}
+#helpClose:hover{border-color:var(--accent);color:var(--ink)}
 
 #main{flex:0 0 auto;display:flex;min-height:0;--labH:clamp(360px, calc(100vh - 64px), 1000px)}
 #simwrap{flex:1;position:relative;min-width:0;background:#0a0a0a;height:var(--labH)}
@@ -88,6 +112,17 @@ header .tag{font-size:11px;color:var(--muted);border:1px solid var(--baseline);
 .row.wide{grid-template-columns:1fr}
 .row label,.row .rowlab{font-size:12px;color:var(--ink2)}
 .row .val{font-size:11px;color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}
+/* A slider alone is too coarse for a value you actually care about, so every
+   control also has a box you can type an exact number into. Both drive the same
+   setter, so they can never disagree. */
+.row input.num{width:100%;background:var(--surface2);color:var(--accent);
+  border:1px solid var(--baseline);border-radius:4px;padding:3px 5px;
+  font:inherit;font-size:11.5px;text-align:right;font-variant-numeric:tabular-nums}
+.row input.num:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.row input.num::-webkit-outer-spin-button,
+.row input.num::-webkit-inner-spin-button{opacity:1;height:22px}
+.nextfill{font-size:10px;color:var(--warn);border:1px solid var(--warn);
+  border-radius:8px;padding:0 5px;margin-left:6px;white-space:nowrap}
 input[type=range]{width:100%;accent-color:var(--accent);height:18px;cursor:pointer}
 input[type=number],select{background:var(--surface2);color:var(--ink);border:1px solid var(--baseline);
   border-radius:4px;padding:4px 6px;font:inherit;font-size:12px;width:100%}
@@ -176,6 +211,13 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   <div class="sp"></div>
   <span class="tag">Cundall–Strack soft-disk DEM</span>
   <span class="tag" id="buildTag" title="build">build —</span>
+  <button class="tag tagbtn" id="bHelp" type="button" title="What every symbol means">? Glossary</button>
+  <button class="tag tagbtn" id="bHud" type="button" title="Hide or show the readout overlay">Hide readouts</button>
+  <label class="tag tagbtn" for="uiScale" style="cursor:default">Text
+    <select id="uiScale" title="Text size">
+      <option value="0.9">S</option><option value="1" selected>M</option>
+      <option value="1.15">L</option><option value="1.3">XL</option>
+    </select></label>
 </header>
 
 <div id="main">
@@ -226,20 +268,20 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
     <div class="sec">
       <h2>Particles</h2>
-      <div class="row"><label for="pN">count N</label>
+      <div class="row"><label for="pN"> count N <span class="nextfill">next fill</span></label>
         <input type="number" id="pN" value="800" min="10" max="20000" step="10"><span class="val"></span></div>
-      <div class="row"><label for="pD">mean diameter d (mm)</label>
-        <input type="range" id="pD" min="0.002" max="0.06" step="0.0005" value="0.030"><span class="val" id="pDv">30.0</span></div>
-      <div class="row"><label for="pX">dispersity ±x (%)</label>
-        <input type="range" id="pX" min="0" max="40" step="1" value="15"><span class="val" id="pXv">15</span></div>
+      <div class="row"><label for="pD"> mean diameter d (mm) <span class="nextfill">next fill</span></label>
+        <input type="range" id="pD" min="2" max="60" step="0.5" value="30"><input class="val num" type="number" id="pDv" min="2" max="60" step="0.5"></div>
+      <div class="row"><label for="pX"> dispersity ±x (%) <span class="nextfill">next fill</span></label>
+        <input type="range" id="pX" min="0" max="40" step="1" value="15"><input class="val num" type="number" id="pXv" min="0" max="40" step="1"></div>
       <div class="row"><label for="pMu">friction μ</label>
-        <input type="range" id="pMu" min="0" max="1" step="0.01" value="0.30"><span class="val" id="pMuv">0.30</span></div>
+        <input type="range" id="pMu" min="0" max="1" step="0.01" value="0.30"><input class="val num" type="number" id="pMuv" min="0" max="1" step="0.01"></div>
       <div class="row"><label for="pMuW">wall friction μ<sub>w</sub></label>
-        <input type="range" id="pMuW" min="0" max="1" step="0.01" value="0"><span class="val" id="pMuWv">0.00</span></div>
+        <input type="range" id="pMuW" min="0" max="1" step="0.01" value="0"><input class="val num" type="number" id="pMuWv" min="0" max="1" step="0.01"></div>
       <div class="row"><label for="pMur">rolling resistance μ<sub>r</sub></label>
-        <input type="range" id="pMur" min="0" max="0.2" step="0.005" value="0.02"><span class="val" id="pMurv">0.020</span></div>
+        <input type="range" id="pMur" min="0" max="0.2" step="0.005" value="0.02"><input class="val num" type="number" id="pMurv" min="0" max="0.2" step="0.005"></div>
       <div class="row"><label for="pRho">density ρ (kg/m³)</label>
-        <input type="range" id="pRho" min="500" max="5000" step="50" value="2500"><span class="val" id="pRhov">2500</span></div>
+        <input type="range" id="pRho" min="500" max="5000" step="50" value="2500"><input class="val num" type="number" id="pRhov" min="500" max="5000" step="10"></div>
       <div class="hint">Diameters are drawn uniformly from d(1±x). x = 0 gives a monodisperse
       packing, which crystallises readily; 10–20% suppresses it.
       <br><br><b>Units.</b> Everything is SI inside (m, kg, N); only the display converts.
@@ -253,15 +295,15 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
     <div class="sec">
       <h2>Contact model</h2>
       <div class="row"><label for="cKn">normal spring k<sub>n</sub> (N/m)</label>
-        <input type="range" id="cKn" min="4" max="8" step="0.05" value="6.30"><span class="val" id="cKnv">2.0e6</span></div>
+        <input type="range" id="cKn" min="4" max="8" step="0.05" value="6.30"><input class="val num" type="number" id="cKnv" min="10000" max="100000000" step="10000"></div>
       <div class="row"><label for="cKt">tangential k<sub>t</sub> / k<sub>n</sub></label>
-        <input type="range" id="cKt" min="0.05" max="1.5" step="0.05" value="0.80"><span class="val" id="cKtv">0.80</span></div>
+        <input type="range" id="cKt" min="0.05" max="1.5" step="0.05" value="0.80"><input class="val num" type="number" id="cKtv" min="0.05" max="1.5" step="0.05"></div>
       <div class="row"><label for="cZeta">contact damping ζ</label>
-        <input type="range" id="cZeta" min="0" max="1" step="0.01" value="0.25"><span class="val" id="cZetav">0.25</span></div>
+        <input type="range" id="cZeta" min="0" max="1" step="0.01" value="0.25"><input class="val num" type="number" id="cZetav" min="0" max="1" step="0.01"></div>
       <div class="row"><label for="cBv">velocity damping b (1/s)</label>
-        <input type="range" id="cBv" min="0" max="20" step="0.1" value="2.0"><span class="val" id="cBvv">2.0</span></div>
+        <input type="range" id="cBv" min="0" max="20" step="0.1" value="2.0"><input class="val num" type="number" id="cBvv" min="0" max="20" step="0.1"></div>
       <div class="row"><label for="cG">gravity g (m/s²)</label>
-        <input type="range" id="cG" min="0" max="20" step="0.1" value="9.81"><span class="val" id="cGv">9.81</span></div>
+        <input type="range" id="cG" min="0" max="20" step="0.1" value="9.81"><input class="val num" type="number" id="cGv" min="0" max="20" step="0.05"></div>
       <div class="hint">ζ is a damping ratio: γ = 2ζ√(m<sub>eff</sub>k). ζ = 0 is perfectly elastic,
       ζ = 1 critically damped. b is background drag on every particle, independent of contact.
       <br><br><b>k<sub>n</sub> must grow with bed depth.</b> Basal contact force rises with the
@@ -275,13 +317,13 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
     <div class="sec">
       <h2>Box &amp; filling</h2>
       <div class="row"><label for="wX1">wall X1 &nbsp;left <span style="color:var(--muted)">cm</span></label>
-        <input type="range" id="wX1" min="-150" max="350" step="0.1" value="0"><span class="val" id="wX1v">0.000</span></div>
+        <input type="range" id="wX1" min="-150" max="350" step="0.1" value="0"><input class="val num" type="number" id="wX1v" min="-150" max="350" step="0.1"></div>
       <div class="row"><label for="wX2">wall X2 &nbsp;right <span style="color:var(--muted)">cm</span></label>
-        <input type="range" id="wX2" min="-150" max="350" step="0.1" value="82"><span class="val" id="wX2v">0.820</span></div>
+        <input type="range" id="wX2" min="-150" max="350" step="0.1" value="82"><input class="val num" type="number" id="wX2v" min="-150" max="350" step="0.1"></div>
       <div class="row"><label for="wY1">wall Y1 &nbsp;floor <span style="color:var(--muted)">cm</span></label>
-        <input type="range" id="wY1" min="-150" max="350" step="0.1" value="0"><span class="val" id="wY1v">0.000</span></div>
+        <input type="range" id="wY1" min="-150" max="350" step="0.1" value="0"><input class="val num" type="number" id="wY1v" min="-150" max="350" step="0.1"></div>
       <div class="row"><label for="wY2">wall Y2 &nbsp;lid <span style="color:var(--muted)">cm</span></label>
-        <input type="range" id="wY2" min="-150" max="350" step="0.1" value="82"><span class="val" id="wY2v">0.820</span></div>
+        <input type="range" id="wY2" min="-150" max="350" step="0.1" value="82"><input class="val num" type="number" id="wY2v" min="-150" max="350" step="0.1"></div>
       <div class="row"><span class="rowlab">box W × H (cm)</span><span></span><span class="val" id="bWH">82.0 × 82.0</span></div>
       <div class="row"><span class="rowlab">box area (cm²)</span><span></span><span class="val" id="bArea">6724</span></div>
       <div class="row"><span class="rowlab">selected wall</span><span></span><span class="val" id="bSel">none</span></div>
@@ -289,7 +331,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       Moving a wall inward compresses whatever is in the way, so the wall-force panel
       responds live; that is the quickest way to see locked-in stress appear.</div>
       <div class="row"><label for="fTarget">target fill φ<sub>box</sub></label>
-        <input type="range" id="fTarget" min="0.40" max="0.86" step="0.01" value="0.84"><span class="val" id="fTargetv">0.84</span></div>
+        <input type="range" id="fTarget" min="0.40" max="0.86" step="0.01" value="0.84"><input class="val num" type="number" id="fTargetv" min="0.40" max="0.86" step="0.01"></div>
       <div class="row wide">
         <button id="bAuto" type="button">Size box so the balls fill it</button></div>
       <div class="hint" id="capHint"></div>
@@ -303,7 +345,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         </select>
       </div>
       <div class="row"><label for="fRate">deposition rate (/s)</label>
-        <input type="range" id="fRate" min="20" max="1200" step="10" value="300"><span class="val" id="fRatev">300</span></div>
+        <input type="range" id="fRate" min="20" max="1200" step="10" value="300"><input class="val num" type="number" id="fRatev" min="20" max="1200" step="10"></div>
       <div class="hint" id="fHint"></div>
     </div>
 
@@ -389,6 +431,92 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   </div>
 </div>
 
+<div id="help" role="dialog" aria-modal="true" aria-label="Glossary">
+  <div id="helpBox">
+    <button id="helpClose" type="button">Close</button>
+    <h2>What everything means</h2>
+    <p class="lead">Everything is SI inside (metres, kilograms, newtons). Only the display
+    converts: grains in mm, the box in cm, forces in N or kN. The disks are unit-thickness,
+    so a force here is really force <i>per metre of depth</i>.</p>
+
+    <h3>Top-left readouts</h3>
+    <dl>
+      <dt>particles</dt><dd>How many disks currently exist.</dd>
+      <dt>t &hellip; s</dt><dd><b>Simulated time, in seconds</b> &mdash; how long the grains have
+        experienced, not how long you have been watching. It runs faster or slower than the
+        clock depending on how much work each frame costs.</dd>
+      <dt>fps</dt><dd>Frames drawn per second. A display measure only; it says nothing about
+        the physics.</dd>
+      <dt>packing &phi;</dt><dd><b>Packing fraction</b>: the share of the measured region covered
+        by disks, from 0 to 1. Loose is about 0.82, dense about 0.85, and the hexagonal limit
+        for equal disks is 0.9069. It is estimated by throwing random points, so it carries
+        roughly &plusmn;0.002 of sampling noise while it is being re-measured.</dd>
+      <dt>Z</dt><dd><b>Coordination number</b>: the average number of touching neighbours per
+        disk, counting disk-to-disk contacts only. In 2D the isostatic limits are Z = 4 for
+        frictionless disks and Z = 3 for very frictional ones, so more friction gives a
+        lower Z.</dd>
+      <dt>Z*</dt><dd>The same average with <b>rattlers excluded</b>. A rattler is a grain with
+        fewer than two contacts &mdash; loose in a hole, carrying no load. Z* describes the
+        load-bearing skeleton; Z describes every grain present.</dd>
+      <dt>KE</dt><dd>Total kinetic energy of the grains. It falls towards zero as the bed
+        settles, and is how the app decides that it has.</dd>
+      <dt>max overlap</dt><dd>The deepest contact interpenetration, as a percentage of one
+        grain diameter. Soft-disk DEM needs a little overlap to generate any force at all:
+        under 1% is healthy, over about 5% means k<sub>n</sub> is too soft for the load and
+        &phi; and Z stop being trustworthy.</dd>
+    </dl>
+
+    <h3>The wall table</h3>
+    <dl>
+      <dt>X1 X2 Y1 Y2</dt><dd>The four walls: left, right, floor, lid.</dd>
+      <dt>normal</dt><dd>Force pressing straight onto that wall.</dd>
+      <dt>shear</dt><dd>Force along the wall face &mdash; friction. Zero whenever
+        &mu;<sub>w</sub> = 0.</dd>
+      <dt>/ W</dt><dd><b>Divided by the total weight of the grains.</b> A ratio, so it stays
+        comparable across grain sizes and counts. The floor should read close to 1.000 &mdash;
+        it carries everything. The lid should read 0.000 unless the packing is being pressed
+        into its container.</dd>
+      <dt>weight W</dt><dd>&Sigma;mg over every grain: the yardstick the / W column divides by.</dd>
+      <dt>X1&minus;X2 imbalance</dt><dd>How unequal the two side walls are. It need not be zero:
+        a frictional floor can hold the difference, up to &mu;<sub>w</sub>&middot;N, which is the
+        budget shown beside it. Set &mu;<sub>w</sub> = 0 to force them exactly equal.</dd>
+      <dt>&Sigma; force residual</dt><dd>Whether the packing as a whole is in equilibrium, in x
+        and in y, as a percentage of W. <b>This is the real test that a bed is static</b> &mdash;
+        not whether X1 equals X2. Near 0% is right.</dd>
+      <dt>K</dt><dd>Effective earth-pressure coefficient, side&middot;L/(W&middot;H): how hard the
+        bed pushes sideways relative to its own weight. Jaky&rsquo;s estimate is
+        1 &minus; sin(atan &mu;), about 0.71 at &mu; = 0.3.</dd>
+    </dl>
+
+    <h3>Contact model</h3>
+    <dl>
+      <dt>k<sub>n</sub></dt><dd>Normal contact stiffness, in N/m. Force = k<sub>n</sub> &times;
+        overlap, so a stiffer setting means less interpenetration. It must grow with bed
+        depth, because deeper beds press harder.</dd>
+      <dt>k<sub>t</sub>/k<sub>n</sub></dt><dd>Tangential stiffness as a fraction of the normal
+        one. Around 0.8 is typical.</dd>
+      <dt>&zeta;</dt><dd>Contact damping ratio: &gamma; = 2&zeta;&radic;(m<sub>eff</sub>k).
+        0 is perfectly bouncy, 1 is critically damped.</dd>
+      <dt>b</dt><dd>Background drag on every grain, per second, unrelated to contact. It removes
+        energy everywhere and settles a bed sooner.</dd>
+      <dt>&mu;, &mu;<sub>w</sub>, &mu;<sub>r</sub></dt><dd>Friction between grains, between a
+        grain and a wall, and rolling resistance. Perfect disks would roll forever without the
+        last one.</dd>
+    </dl>
+
+    <h3>Worth knowing</h3>
+    <dl>
+      <dt>next fill</dt><dd>N, d and &plusmn;x decide <i>which grains exist</i>, so they take
+        effect when you next press Fill. Every other setting applies immediately to the grains
+        already on screen.</dd>
+      <dt>Pause</dt><dd>Freezes the physics <i>and</i> the readouts, so &phi; stops re-sampling
+        and stops twitching in its last digit.</dd>
+      <dt>Fit view</dt><dd>Re-frames the camera on the box. The view never moves by itself, so
+        dragging one wall can never appear to move another.</dd>
+    </dl>
+  </div>
+</div>
+
 <section id="fb">
   <div class="fb-wrap">
     <h2>Notes &amp; feedback</h2>
@@ -454,7 +582,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-05b';
+const BUILD = '2026-09-06a';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -469,7 +597,11 @@ const S = {
   dragFrom: null, dragVal: 0, dragMoved: 0,
   N: 800, d: 0.030, x: 0.15,  // target count, mean diameter, dispersity
   mu: 0.30, muW: 0.00, mur: 0.02, rho: 2500,
-  kn: 2.0e4, ktRatio: 0.80, zeta: 0.25, bv: 0.5, g: 9.81,
+  /* These ARE the defaults now. The controls are driven from state, so a value
+     here that disagrees with a slider's authored value silently wins — kn sat at
+     2.0e4 while the slider showed 2.0e6, which is soft enough to give 40%+ contact
+     overlap. The startup check below catches any future drift. */
+  kn: 2.0e6, ktRatio: 0.80, zeta: 0.25, bv: 2.0, g: 9.81,
   method: 'rain', rate: 300, fillTarget: 0.84,
 
   P: [],                      // particles
@@ -1044,6 +1176,7 @@ function settleTick(){
   }
   if(isQuiet() && S.muActive === S.mu){
     S.phase = 'settled';
+    S._measureOnce = true;   // one last, sharper phi
     resetWallAvg();      // discard the deposition transient: report equilibrium only
   }
 }
@@ -1433,8 +1566,11 @@ function paintReadouts(){
     jammed:'JAMMED — bed reached the lid, '+S.toPlace+' balls never placed',
     refused:'REFUSED — N exceeds what this box can hold'
   })[S.phase] || S.phase;
-  $('phase').style.color = (S.phase==='jammed'||S.phase==='refused')
-    ? 'var(--bad)' : 'var(--accent)';
+  /* Say it plainly while paused: the readouts are deliberately frozen, so a
+     still phi is the expected behaviour rather than a stuck simulation. */
+  if(!S.running) $('phase').textContent = 'PAUSED — physics and readouts frozen';
+  $('phase').style.color = (S.phase==='jammed'||S.phase==='refused') ? 'var(--bad)'
+    : (!S.running ? 'var(--warn)' : 'var(--accent)');
 }
 function maxOverlapPct(){
   /* the pair list already holds every candidate; no grid rebuild needed */
@@ -1472,12 +1608,24 @@ function frame(t){
   measure();
 
   /* the two expensive diagnostics run at 5 Hz, not every frame */
+  /* phi is a MONTE-CARLO estimate: samplePhi throws random points and counts
+     hits, so re-running it on an unchanged packing returns a slightly different
+     number every time. Doing that on a timer made phi visibly twitch in the
+     fourth decimal after Pause, which reads as "the simulation is still going"
+     when nothing is moving at all. Measured on a frozen packing: 0.8265-0.8327
+     across eight samples, sd 0.0018 against a theoretical s.e. of 0.0024.
+
+     So only re-sample when something has actually changed. When it goes quiet,
+     take one final pass with four times the samples: half the noise, and it
+     costs nothing because it happens once. */
   slowT += dtFrame;
-  if(slowT > 0.2){
+  if(slowT > 0.2 && (S.running || S._measureOnce)){
     slowT = 0;
-    samplePhi(24000);
+    const settling = S.running && S.phase !== 'settled';
+    samplePhi(settling ? 24000 : 96000);
     S.overlapPct = maxOverlapPct();
-    measure();                      // refresh φ into S.meas
+    measure();
+    S._measureOnce = false;
   }
 
   histT += dtFrame;
@@ -1505,39 +1653,83 @@ function frame(t){
 }
 
 /* ================================ wiring ================================== */
-function bind(id, key, valId, fmt, after){
-  const el = $(id);
-  const apply = () => {
-    S[key] = +el.value;
-    if(valId) $(valId).textContent = fmt ? fmt(S[key]) : S[key];
-    if(after) after();
-  };
-  el.addEventListener('input', apply);
-  apply();
+/* ------------------------------------------------------------- controls ---
+   One spec per numeric control. The slider and the number box are two views of
+   the same setter, so they cannot drift apart, and typing an exact value is
+   always possible — a slider alone is far too coarse for k_n or a wall position.
+
+   Everything here applies to the RUNNING model immediately. The three marked
+   nextFill are the exception and are labelled as such in the UI: N, d and ±x
+   define which particles exist, and changing them mid-run would mean inventing
+   or deleting grains rather than adjusting the experiment. */
+function reMass(){                       // density is live: re-derive m and I
+  for(const p of S.P){ p.m = massOf(p.r); p.I = inertOf(p.m, p.r); }
 }
-bind('pD','d','pDv', v=>(v*1000).toFixed(1), ()=>{ recomputeDt(); fillCapacityNote(); });
-bind('pX','x','pXv', v=>v.toFixed(0), ()=>{ S.x = +$('pX').value/100; recomputeDt(); fillCapacityNote(); });
-bind('pMu','mu','pMuv', v=>v.toFixed(2), ()=>{ if(S.phase!=='filling'&&S.phase!=='growing') S.muActive=S.mu; });
-bind('pMur','mur','pMurv', v=>v.toFixed(3));
-bind('pMuW','muW','pMuWv', v=>v.toFixed(2));
-bind('pRho','rho','pRhov', v=>v.toFixed(0), recomputeDt);
-bind('cKt','ktRatio','cKtv', v=>v.toFixed(2), recomputeDt);
-bind('cZeta','zeta','cZetav', v=>v.toFixed(2));
-bind('cBv','bv','cBvv', v=>v.toFixed(1));
-bind('cG','g','cGv', v=>v.toFixed(2), ()=>{ if(S.phase!=='unloading') S.gActive=S.g; });
-bind('fTarget','fillTarget','fTargetv', v=>v.toFixed(2), fillCapacityNote);
+const CTL = {
+  pD:      {get:()=>S.d*1000,      set:v=>S.d=v/1000,     dp:1, nextFill:true,
+            after:()=>{ recomputeDt(); fillCapacityNote(); }},
+  pX:      {get:()=>S.x*100,       set:v=>S.x=v/100,      dp:0, nextFill:true,
+            after:()=>{ recomputeDt(); fillCapacityNote(); }},
+  pMu:     {get:()=>S.mu,          set:v=>S.mu=v,         dp:2,
+            after:()=>{ if(S.phase!=='filling'&&S.phase!=='growing') S.muActive=S.mu; }},
+  pMuW:    {get:()=>S.muW,         set:v=>S.muW=v,        dp:2},
+  pMur:    {get:()=>S.mur,         set:v=>S.mur=v,        dp:3},
+  pRho:    {get:()=>S.rho,         set:v=>{S.rho=v; reMass();}, dp:0, after:recomputeDt},
+  cKn:     {get:()=>S.kn,          set:v=>S.kn=v,         dp:0, log:true, after:recomputeDt},
+  cKt:     {get:()=>S.ktRatio,     set:v=>S.ktRatio=v,    dp:2, after:recomputeDt},
+  cZeta:   {get:()=>S.zeta,        set:v=>S.zeta=v,       dp:2},
+  cBv:     {get:()=>S.bv,          set:v=>S.bv=v,         dp:1},
+  cG:      {get:()=>S.g,           set:v=>S.g=v,          dp:2,
+            after:()=>{ if(S.phase!=='unloading') S.gActive=S.g; }},
+  fTarget: {get:()=>S.fillTarget,  set:v=>S.fillTarget=v, dp:2, after:fillCapacityNote},
+  fRate:   {get:()=>S.rate,        set:v=>S.rate=v,       dp:0},
+  wX1:     {get:()=>S.boxT.x1*100, set:v=>setWall('x1',v/100), dp:1, wall:true},
+  wX2:     {get:()=>S.boxT.x2*100, set:v=>setWall('x2',v/100), dp:1, wall:true},
+  wY1:     {get:()=>S.boxT.y1*100, set:v=>setWall('y1',v/100), dp:1, wall:true},
+  wY2:     {get:()=>S.boxT.y2*100, set:v=>setWall('y2',v/100), dp:1, wall:true},
+};
+/* k_n spans four decades, so its slider is logarithmic while its box holds the
+   plain number you would actually write down. */
+const toSlider   = (id,v) => CTL[id].log ? Math.log10(v) : v;
+const fromSlider = (id,v) => CTL[id].log ? Math.pow(10,v) : v;
 
-/* kn slider is log10 */
-$('cKn').addEventListener('input', e=>{
-  S.kn = Math.pow(10, +e.target.value);
-  $('cKnv').textContent = S.kn.toExponential(1);
-  recomputeDt();
+function showCtl(id){
+  const c = CTL[id], v = c.get();
+  const sl = $(id), nb = $(id+'v');
+  if(sl && document.activeElement !== sl) sl.value = toSlider(id, v);
+  if(nb && document.activeElement !== nb) nb.value = (+v).toFixed(c.dp);
+}
+function syncControls(){ for(const id in CTL) showCtl(id); }
+
+function applyCtl(id, value){
+  const c = CTL[id];
+  const nb = $(id+'v'), sl = $(id);
+  let v = Number(value);
+  if(!isFinite(v)) return;
+  if(nb){ v = clamp(v, +nb.min, +nb.max); }
+  c.set(v);
+  if(c.after) c.after();
+  if(!c.wall) showCtl(id);          // wall setters sync through syncWallUI
+  S._measureOnce = true;            // the readouts should reflect this at once
+}
+
+for(const id in CTL){
+  const sl = $(id), nb = $(id+'v');
+  if(sl) sl.addEventListener('input', e => applyCtl(id, fromSlider(id, +e.target.value)));
+  if(nb){
+    /* commit on Enter or blur as well as on input, so a half-typed number never
+       yanks the model somewhere absurd mid-keystroke */
+    nb.addEventListener('change', e => applyCtl(id, e.target.value));
+    nb.addEventListener('keydown', e => { if(e.key === 'Enter') e.target.blur(); });
+  }
+}
+
+/* N is a count, not a measurement: integer, and its own box */
+$('pN').addEventListener('input', e => {
+  S.N = clamp(Math.round(+e.target.value)||0, 1, 20000);
+  fillCapacityNote();
 });
-S.kn = Math.pow(10, +$('cKn').value);
-$('cKnv').textContent = S.kn.toExponential(1);
 
-$('pN').addEventListener('input', e=>{ S.N = clamp(+e.target.value||0,1,20000); fillCapacityNote(); });
-$('fRate').addEventListener('input', e=>{ S.rate = +e.target.value; $('fRatev').textContent = S.rate; });
 $('fMethod').addEventListener('change', updateHint);
 
 /* ---------------------------------------------------------- wall control --
@@ -1565,8 +1757,10 @@ function syncWallUI(){
   const b = S.boxT;
   const set = (id,val)=>{ const el=$(id); if(el) el.value = (val*100).toFixed(1); };
   set('wX1',b.x1); set('wX2',b.x2); set('wY1',b.y1); set('wY2',b.y2);
-  $('wX1v').textContent=CM(b.x1); $('wX2v').textContent=CM(b.x2);
-  $('wY1v').textContent=CM(b.y1); $('wY2v').textContent=CM(b.y2);
+  for(const [id,v] of [['wX1v',b.x1],['wX2v',b.x2],['wY1v',b.y1],['wY2v',b.y2]]){
+    const el = $(id);
+    if(el && document.activeElement !== el) el.value = (v*100).toFixed(1);
+  }
   $('bWH').textContent = CM(BW())+' × '+CM(BH());
   $('bArea').textContent = (BW()*BH()*1e4).toFixed(0);
   $('bSel').textContent = S.sel ? WALL_NAMES[S.sel]+' — arrow keys' : 'none';
@@ -1704,6 +1898,35 @@ $('bAuto').addEventListener('click', ()=>{
 
 $('bFit').addEventListener('click', fitView);
 
+/* glossary — every symbol on screen, explained in one place */
+const helpBox = $('help');
+const showHelp = on => helpBox.className = on ? 'on' : '';
+$('bHelp').addEventListener('click', ()=> showHelp(true));
+$('helpClose').addEventListener('click', ()=> showHelp(false));
+helpBox.addEventListener('click', e => { if(e.target === helpBox) showHelp(false); });
+window.addEventListener('keydown', e => { if(e.key === 'Escape') showHelp(false); });
+
+/* the readouts overlay the packing, so let them be dismissed; remember it */
+function setHud(on){
+  $('hud').className = on ? '' : 'hidden';
+  $('bHud').textContent = on ? 'Hide readouts' : 'Show readouts';
+  try { localStorage.setItem('glab_hud', on ? '1' : '0'); } catch {}
+}
+$('bHud').addEventListener('click', ()=> setHud($('hud').className === 'hidden'));
+try { setHud(localStorage.getItem('glab_hud') !== '0'); } catch { setHud(true); }
+
+/* text size — the panel is dense and 12px does not suit everyone */
+function setScale(v){
+  document.documentElement.style.fontSize = (16*v) + 'px';
+  document.body.style.fontSize = (14*v) + 'px';
+  try { localStorage.setItem('glab_scale', String(v)); } catch {}
+}
+$('uiScale').addEventListener('change', e => setScale(+e.target.value));
+try {
+  const sv = localStorage.getItem('glab_scale');
+  if(sv){ $('uiScale').value = sv; setScale(+sv); }
+} catch {}
+
 /* ---------------------------------------------------------------- export --
    A measurement lab that cannot hand you its measurements is a toy. Both files
    lead with the build and a timestamp: a number you cannot trace to a version
@@ -1779,9 +2002,12 @@ $('expParticles').addEventListener('click', ()=>{
 let DEFAULTS = null;
 function captureDefaults(){
   DEFAULTS = {
-    ranges: {pN:S.N, pD:S.d, pX:S.x*100, pMu:S.mu, pMuW:S.muW, pMur:S.mur,
-             pRho:S.rho, cKn:Math.log10(S.kn), cKt:S.ktRatio, cZeta:S.zeta,
-             cBv:S.bv, cG:S.g, fTarget:S.fillTarget, fRate:S.rate},
+    /* MODEL values, not slider positions. Round-tripping through a slider
+       re-quantises to its step: k_n came back as 1995262 rather than 2e6, because
+       the logarithmic slider steps by 0.05. Reset restores exactly what was taken. */
+    ctl: Object.fromEntries(Object.keys(CTL).filter(id => !CTL[id].wall)
+                                            .map(id => [id, CTL[id].get()])),
+    N: S.N,
     selects: {fMethod:$('fMethod').value, dColor:$('dColor').value},
     checks:  {dSpin:$('dSpin').checked, dRegion:$('dRegion').checked, dNet:$('dNet').checked},
     box: {...S.box}
@@ -1796,13 +2022,16 @@ function setControl(id, value, kind){
 }
 function resetAll(){
   if(!DEFAULTS) return;
-  for(const [id,v] of Object.entries(DEFAULTS.ranges))  setControl(id, v);
+  for(const [id,v] of Object.entries(DEFAULTS.ctl)){
+    CTL[id].set(v); if(CTL[id].after) CTL[id].after();
+  }
+  S.N = DEFAULTS.N; $('pN').value = S.N;
   for(const [id,v] of Object.entries(DEFAULTS.selects)) setControl(id, v);
   for(const [id,v] of Object.entries(DEFAULTS.checks))  setControl(id, v, 'check');
   /* set target AND actual so a reset lands at once instead of sweeping there */
   for(const k of ['x1','x2','y1','y2']){ S.boxT[k]=DEFAULTS.box[k]; S.box[k]=DEFAULTS.box[k]; }
   PL.valid = false; S.sel = null; S.drag = null;
-  syncWallUI(); clearAll(); fitView(); fillCapacityNote(); updateHint();
+  syncWallUI(); syncControls(); clearAll(); fitView(); fillCapacityNote(); updateHint();
   const ph = $('phase');
   if(ph){ ph.textContent = 'reset to defaults'; ph.style.color = 'var(--accent)'; }
 }
@@ -1822,8 +2051,11 @@ $('bClear').addEventListener('click', clearAll);
 $('bPause').addEventListener('click', ()=>{
   S.running = !S.running;
   $('bPause').textContent = S.running ? '❙❙ Pause' : '▶ Run';
+  const ph = $('phase');
+  if(ph && !S.running){ ph.textContent = 'paused — readouts frozen'; ph.style.color = 'var(--warn)'; }
+  S._measureOnce = true;      // settle on a final, sharper value before freezing
 });
-$('bStep').addEventListener('click', ()=>{ for(let s=0;s<S.sub;s++) step(S.dt); });
+$('bStep').addEventListener('click', ()=>{ for(let s=0;s<S.sub;s++) step(S.dt); S._measureOnce = true; });
 
 $('dColor').addEventListener('change', e=>{ S.colour = e.target.value; });
 $('dSpin').addEventListener('change', e=>{ S.spin = e.target.checked; });
@@ -1851,7 +2083,7 @@ window.addEventListener('resize', ()=>{ resize(); });
 if(typeof ResizeObserver !== 'undefined'){
   new ResizeObserver(()=>resize()).observe(cv.parentElement);
 }
-resize(); recomputeDt(); syncWallUI(); updateHint(); clearAll(); captureDefaults();
+resize(); recomputeDt(); syncWallUI(); syncControls(); updateHint(); clearAll(); captureDefaults();
 
 /* ==========================================================================
    FEEDBACK — anonymous, timestamped, stored server-side in SQLite.
@@ -2042,6 +2274,16 @@ FB.init();
   });
   if(dupes.size) console.error('DUPLICATE ELEMENT IDs:', [...dupes].join(', '),
     '- getElementById returns only the first, so listeners may be on the wrong element.');
+  /* The controls are driven from state, so a slider's authored value= is only a
+     placeholder. If the two disagree the state wins silently, which is how kn
+     shipped at 2e4 while the slider read 2e6. Say so at startup. */
+  for(const id in CTL){
+    const el = $(id); if(!el || !el.hasAttribute('value')) continue;
+    const authored = +el.getAttribute('value'), actual = toSlider(id, CTL[id].get());
+    if(Math.abs(authored - actual) > Math.max(1e-6, Math.abs(actual)*0.01))
+      console.warn('control default drift:', id, 'markup says', authored,
+                   'but state gives', +actual.toFixed(4));
+  }
   setTimeout(()=>{
     if(frameCount === 0){
       const el = document.getElementById('stalled');
