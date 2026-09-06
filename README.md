@@ -265,6 +265,18 @@ plainly: **PAUSED — physics and readouts frozen**.
 - **Hide readouts** collapses the HUD when it covers the packing. Remembered.
 - **Text size** S/M/L/XL in the header. Remembered.
 
+The first attempt at text size did nothing at all. It set the root font-size,
+which only moves text sized in `rem`/`em` — and the stylesheet had **45 absolute
+px font-sizes and zero relative ones**, so nothing inherited from it. Every
+font-size is now `calc(Npx * var(--ui))` and the selector moves that one
+variable; the panel widens with it so larger type does not just wrap, and the
+canvas-drawn labels take the multiplier explicitly since they are painted rather
+than styled. Verified by measuring *rendered* text: panel labels 10.8 → 15.6 px
+across S → XL.
+
+The original test only asserted the style property had been set, never that any
+visible text changed — the mechanism, not the outcome. Worth remembering.
+
 ## Feedback
 
 A full-width section at the bottom of the page collects **anonymous, timestamped**
