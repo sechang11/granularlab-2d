@@ -23,11 +23,6 @@
 body{background:var(--page);color:var(--ink);
   font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:calc(14px * var(--ui));line-height:1.5;
   min-height:100vh;display:flex;flex-direction:column}
-/* The lab occupies most of a viewport; feedback lives below it. Heights are set
-   on the two columns rather than derived from the header, because the header
-   wraps on narrow screens and any calc(100vh - fixed) guess goes wrong there. */
-#labH{--labH:clamp(360px, calc(100vh - 64px), 1000px)}
-
 header{padding:9px 16px;border-bottom:1px solid var(--baseline);
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--surface)}
 header h1{font-size:calc(15px * var(--ui));font-weight:600;letter-spacing:.01em}
@@ -40,7 +35,21 @@ header .tag{font-size:calc(11px * var(--ui));color:var(--muted);border:1px solid
 #uiScale{background:var(--surface2);color:var(--ink2);border:0;font:inherit;
   font-size:calc(11px * var(--ui));margin-left:4px;cursor:pointer}
 
-/* The readouts sit over the packing and can obscure it, so they collapse. */
+/* Three workspaces. Each holds its own settings, kept in this browser, so two
+   configurations can be compared without writing either of them down. */
+#tabs{display:flex;align-items:center;gap:6px;padding:5px 16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--baseline);background:var(--surface)}
+#tabs .tlbl{font-size:calc(10px * var(--ui));letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin-right:4px}
+#tabs .tab{background:transparent;border:1px solid var(--baseline);color:var(--ink2);
+  border-radius:6px;padding:3px 15px;cursor:pointer;font:inherit;font-weight:600;
+  font-size:calc(12px * var(--ui))}
+#tabs .tab:hover{border-color:var(--accent);color:var(--ink)}
+#tabs .tab.on{border-color:var(--accent);color:var(--accent);background:var(--surface2)}
+#tabs .tnote{font-size:calc(10.5px * var(--ui));color:var(--muted);margin-left:8px}
+
+/* The readouts have their own column now, but it can still be collapsed to give
+   the whole width to the packing. */
 #hud.hidden{display:none}
 
 /* Glossary overlay */
@@ -52,20 +61,31 @@ header .tag{font-size:calc(11px * var(--ui));color:var(--muted);border:1px solid
 #helpBox h2{font-size:calc(17px * var(--ui));font-weight:600;margin-bottom:4px}
 #helpBox p.lead{color:var(--muted);font-size:calc(13px * var(--ui));margin-bottom:16px;max-width:70ch}
 #helpBox h3{font-size:calc(11px * var(--ui));font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--muted);margin:18px 0 7px;border-bottom:1px solid var(--baseline);padding-bottom:5px}
+  color:var(--muted);margin:18px 0 7px;border-bottom:1px solid var(--baseline);padding-bottom:5px;
+  /* a section opened from its ? marker lands here, not flush against the edge */
+  scroll-margin-top:18px}
 #helpBox dl{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;font-size:calc(13px * var(--ui))}
 #helpBox dt{color:var(--accent);font-family:ui-monospace,Consolas,monospace;white-space:nowrap}
 #helpBox dd{color:var(--ink2);margin:0}
 #helpClose{float:right;background:transparent;border:1px solid var(--baseline);
-  color:var(--ink2);border-radius:6px;padding:3px 10px;cursor:pointer;font:inherit;font-size:calc(12px * var(--ui))}
+  color:var(--muted);border-radius:6px;padding:1px 9px;cursor:pointer;font:inherit;
+  font-size:calc(15px * var(--ui));line-height:1.2}
 #helpClose:hover{border-color:var(--accent);color:var(--ink)}
 
 #main{flex:0 0 auto;display:flex;min-height:0;--labH:clamp(360px, calc(100vh - 64px), 1000px)}
 #simwrap{flex:1;position:relative;min-width:0;background:#0a0a0a;height:var(--labH)}
 #sim{display:block;width:100%;height:100%}
-#hud{position:absolute;top:10px;left:12px;font-size:calc(12px * var(--ui));color:var(--ink2);
-  background:rgba(10,10,10,.72);border:1px solid var(--border);border-radius:6px;
-  padding:8px 11px;pointer-events:none;line-height:1.7;font-variant-numeric:tabular-nums}
+/* The readouts used to float over the packing and covered it. They now have
+   their own column between the view and the controls, so both are fully visible
+   at once. On a narrow screen everything stacks instead. */
+/* Sized by its content, not by a guess: the wall table is five nowrap columns
+   wide and a fixed 228px cut the shear column off and produced a horizontal
+   scrollbar. max-content also tracks the text-size selector for free. */
+#hud{flex:0 0 auto;width:max-content;
+  min-width:calc(200px * var(--ui));max-width:calc(360px * var(--ui));overflow-y:auto;
+  background:var(--surface);border-left:1px solid var(--baseline);
+  padding:10px 12px;line-height:1.7;height:var(--labH);
+  font-size:calc(12px * var(--ui));color:var(--ink2);font-variant-numeric:tabular-nums}
 #hud b{color:var(--ink);font-weight:600}
 #hud .lbl{color:var(--muted)}
 #hWalls{margin-top:6px;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:calc(11.5px * var(--ui))}
@@ -100,25 +120,40 @@ header .tag{font-size:calc(11px * var(--ui));color:var(--muted);border:1px solid
 /* Below ~820px the 330px panel leaves the canvas too little room — under about
    400px it left less than the padding, which is what drove the scale negative.
    Stack instead: canvas on top, controls beneath, both full width. */
+@media (max-width: 1180px){
+  /* Not enough width for three columns without squeezing the view. Give the
+     view a full-width row of its own and put the readouts beside the controls
+     underneath it — both rows keep an explicit height so the panel still
+     scrolls inside itself rather than growing to its full 2800px. */
+  #main{flex-wrap:wrap;--rowH:clamp(300px, 46vh, 520px)}
+  #simwrap{flex:1 1 100%;height:var(--rowH)}
+  #hud{flex:1 1 240px;width:auto;max-width:none;height:var(--rowH);
+    border-left:0;border-top:1px solid var(--baseline)}
+  #panel{height:var(--rowH);border-top:1px solid var(--baseline)}
+}
 @media (max-width: 820px){
   #main{flex-direction:column}
   #simwrap{width:100%;height:clamp(300px, 58vh, 560px);flex:0 0 auto}
   #panel{width:100%;flex:1 1 auto;height:auto;max-height:none;
     border-left:0;border-top:1px solid var(--baseline)}
+  #hud{flex:0 0 auto;width:100%;height:auto;max-height:none}
   #hud{font-size:calc(11px * var(--ui));padding:6px 9px}
   .fb-wrap{padding:0 16px}
 }
 .sec{border-bottom:1px solid var(--baseline);padding:12px 14px}
 .sec h2{font-size:calc(11px * var(--ui));font-weight:700;letter-spacing:.12em;text-transform:uppercase;
   color:var(--muted);margin-bottom:9px}
-.row{display:grid;grid-template-columns:1fr 96px 52px;gap:7px;align-items:center;margin-bottom:7px}
+/* The slider and the number box have to grow with the text too, or XL leaves a
+   14px label beside a box too narrow to show "0.30". */
+.row{display:grid;grid-template-columns:1fr calc(96px * var(--ui)) calc(56px * var(--ui));
+  gap:7px;align-items:center;margin-bottom:7px}
 .row.wide{grid-template-columns:1fr}
 .row label,.row .rowlab{font-size:calc(12px * var(--ui));color:var(--ink2)}
 .row .val{font-size:calc(11px * var(--ui));color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}
 /* A slider alone is too coarse for a value you actually care about, so every
    control also has a box you can type an exact number into. Both drive the same
    setter, so they can never disagree. */
-.row input.num{width:100%;background:var(--surface2);color:var(--accent);
+.row input.num{width:100%;min-width:0;background:var(--surface2);color:var(--accent);
   border:1px solid var(--baseline);border-radius:4px;padding:3px 5px;
   font:inherit;font-size:calc(11.5px * var(--ui));text-align:right;font-variant-numeric:tabular-nums}
 .row input.num:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
@@ -131,6 +166,19 @@ input[type=number],select{background:var(--surface2);color:var(--ink);border:1px
   border-radius:4px;padding:4px 6px;font:inherit;font-size:calc(12px * var(--ui));width:100%}
 input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .hint{font-size:calc(11px * var(--ui));color:var(--muted);margin-top:5px;line-height:1.5}
+/* A live calculation, not instruction — deliberately a different class from
+   .hint so that stripping the prose can never again strip a readout. */
+.note{font-size:calc(11px * var(--ui));color:var(--ink2);margin-top:7px;line-height:1.55;
+  border-left:2px solid var(--baseline);padding-left:8px}
+/* The long explanations moved into the glossary; each section keeps a small
+   marker that opens it at the right place. Prose in a control panel pushes the
+   controls off screen — that is how Fill ended up below the fold. */
+.ghelp{margin-left:7px;width:16px;height:16px;line-height:1;padding:0;
+  border:1px solid var(--baseline);background:transparent;color:var(--muted);
+  border-radius:50%;font:inherit;font-size:calc(10px * var(--ui));cursor:pointer;
+  vertical-align:middle}
+.ghelp:hover{border-color:var(--accent);color:var(--accent)}
+#helpBox h3:target,#helpBox h3.flash{color:var(--accent);border-bottom-color:var(--accent)}
 
 button{font:inherit;font-size:calc(12px * var(--ui));cursor:pointer;background:var(--surface2);color:var(--ink);
   border:1px solid var(--baseline);border-radius:5px;padding:6px 10px;transition:border-color .15s,background .15s}
@@ -215,7 +263,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   <span class="tag">Cundall–Strack soft-disk DEM</span>
   <span class="tag" id="buildTag" title="build">build —</span>
   <button class="tag tagbtn" id="bHelp" type="button" title="What every symbol means">? Glossary</button>
-  <button class="tag tagbtn" id="bHud" type="button" title="Hide or show the readout overlay">Hide readouts</button>
+  <button class="tag tagbtn" id="bHud" type="button" title="Hide the readouts and give the whole width to the packing">Hide readouts</button>
   <label class="tag tagbtn" for="uiScale" style="cursor:default">Text
     <select id="uiScale" title="Text size">
       <option value="0.9">S</option><option value="1" selected>M</option>
@@ -223,10 +271,28 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
     </select></label>
 </header>
 
+<nav id="tabs" aria-label="Workspaces">
+  <span class="tlbl">workspace</span>
+  <button class="tab on" id="tab1" type="button">A</button>
+  <button class="tab" id="tab2" type="button">B</button>
+  <button class="tab" id="tab3" type="button">C</button>
+  <span class="tnote">each keeps its own settings in this browser &middot; switching empties the box &middot; Reset returns this one to defaults</span>
+</nav>
+
 <div id="main">
   <div id="simwrap">
     <canvas id="sim"></canvas>
-    <div id="hud">
+    <div id="phase">idle</div>
+    <div id="stalled"><div>
+      <h3>The animation loop never started</h3>
+      <p>The physics and rendering are driven by <code>requestAnimationFrame</code>, and it has
+      not fired since this page loaded. Almost always this is a stale cached copy: reload with
+      <code>Ctrl+Shift+R</code> (<code>Cmd+Shift+R</code> on a Mac).</p>
+      <p>If it persists, open the console — the first error there is the cause.</p>
+    </div></div>
+  </div>
+
+  <aside id="hud">
       <div><span class="lbl">particles</span> <b id="hN">0</b> &nbsp; <span class="lbl">t</span> <b id="hT">0.00</b> s &nbsp; <b id="hFps"></b></div>
       <div><span class="lbl">packing φ</span> <b id="hPhi">–</b> &nbsp; <span class="lbl">Z</span> <b id="hZ">–</b> &nbsp; <span class="lbl">Z*</span> <b id="hZs">–</b></div>
       <div><span class="lbl">KE</span> <b id="hKE">–</b> &nbsp; <span class="lbl">max overlap</span> <b id="hOv">–</b></div>
@@ -241,16 +307,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         <tr><td class="lbl">Σ force residual</td><td></td><td id="fResX">–</td><td id="fResY">–</td><td class="lbl">x , y</td></tr>
       </table>
       <div id="badge">✓ NO LOCKED-IN STRESS</div>
-    </div>
-    <div id="phase">idle</div>
-    <div id="stalled"><div>
-      <h3>The animation loop never started</h3>
-      <p>The physics and rendering are driven by <code>requestAnimationFrame</code>, and it has
-      not fired since this page loaded. Almost always this is a stale cached copy: reload with
-      <code>Ctrl+Shift+R</code> (<code>Cmd+Shift+R</code> on a Mac).</p>
-      <p>If it persists, open the console — the first error there is the cause.</p>
-    </div></div>
-  </div>
+  </aside>
 
   <div id="panel">
 
@@ -270,7 +327,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
     </div>
 
     <div class="sec">
-      <h2>Particles</h2>
+      <h2>Particles<button class="ghelp" type="button" data-g="g-particles" title="What do these mean?" aria-label="Explain Particles">?</button></h2>
       <div class="row"><label for="pN"> count N <span class="nextfill">next fill</span></label>
         <input type="number" id="pN" value="800" min="10" max="20000" step="10"><span class="val"></span></div>
       <div class="row"><label for="pD"> mean diameter d (mm) <span class="nextfill">next fill</span></label>
@@ -285,18 +342,10 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         <input type="range" id="pMur" min="0" max="0.2" step="0.005" value="0.02"><input class="val num" type="number" id="pMurv" min="0" max="0.2" step="0.005"></div>
       <div class="row"><label for="pRho">density ρ (kg/m³)</label>
         <input type="range" id="pRho" min="500" max="5000" step="50" value="2500"><input class="val num" type="number" id="pRhov" min="500" max="5000" step="10"></div>
-      <div class="hint">Diameters are drawn uniformly from d(1±x). x = 0 gives a monodisperse
-      packing, which crystallises readily; 10–20% suppresses it.
-      <br><br><b>Units.</b> Everything is SI inside (m, kg, N); only the display converts.
-      Grain size reads in <b>mm</b>, the box in <b>cm</b>, forces in N/kN — what a granular
-      experimentalist would actually write down. Note the disks are unit-thickness, so a force
-      here is really force <i>per metre of depth</i> (N/m) and a mass is kg/m; the ratios that
-      matter (bottom/W, K) are dimensionless either way. 30 mm grains are gravel — real bead
-      experiments run 1–3 mm, and the slider now reaches 2 mm.</div>
     </div>
 
     <div class="sec">
-      <h2>Contact model</h2>
+      <h2>Contact model<button class="ghelp" type="button" data-g="g-contact" title="What do these mean?" aria-label="Explain Contact model">?</button></h2>
       <div class="row"><label for="cKn">normal spring k<sub>n</sub> (N/m)</label>
         <input type="range" id="cKn" min="4" max="8" step="0.05" value="6.30"><input class="val num" type="number" id="cKnv" min="10000" max="100000000" step="10000"></div>
       <div class="row"><label for="cKt">tangential k<sub>t</sub> / k<sub>n</sub></label>
@@ -307,18 +356,10 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         <input type="range" id="cBv" min="0" max="20" step="0.1" value="2.0"><input class="val num" type="number" id="cBvv" min="0" max="20" step="0.1"></div>
       <div class="row"><label for="cG">gravity g (m/s²)</label>
         <input type="range" id="cG" min="0" max="20" step="0.1" value="9.81"><input class="val num" type="number" id="cGv" min="0" max="20" step="0.05"></div>
-      <div class="hint">ζ is a damping ratio: γ = 2ζ√(m<sub>eff</sub>k). ζ = 0 is perfectly elastic,
-      ζ = 1 critically damped. b is background drag on every particle, independent of contact.
-      <br><br><b>k<sub>n</sub> must grow with bed depth.</b> Basal contact force rises with the
-      weight above it, and overlap is force/k<sub>n</sub> — so a setting that gives 1% overlap at
-      N = 800 gives 7% at N = 8000. Watch the <b>max overlap</b> readout: green under 1%, red over
-      5%. Above ~2% the packing fraction is inflated by interpenetration and Z drifts past its
-      isostatic limit, so raise k<sub>n</sub> until it goes green. The cost is substeps — dt scales
-      as 1/√k<sub>n</sub>.</div>
     </div>
 
     <div class="sec">
-      <h2>Box &amp; filling</h2>
+      <h2>Box &amp; filling<button class="ghelp" type="button" data-g="g-box" title="What do these mean?" aria-label="Explain Box and filling">?</button></h2>
       <div class="row"><label for="wX1">wall X1 &nbsp;left <span style="color:var(--muted)">cm</span></label>
         <input type="range" id="wX1" min="-150" max="350" step="0.1" value="0"><input class="val num" type="number" id="wX1v" min="-150" max="350" step="0.1"></div>
       <div class="row"><label for="wX2">wall X2 &nbsp;right <span style="color:var(--muted)">cm</span></label>
@@ -330,14 +371,10 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <div class="row"><span class="rowlab">box W × H (cm)</span><span></span><span class="val" id="bWH">82.0 × 82.0</span></div>
       <div class="row"><span class="rowlab">box area (cm²)</span><span></span><span class="val" id="bArea">6724</span></div>
       <div class="row"><span class="rowlab">selected wall</span><span></span><span class="val" id="bSel">none</span></div>
-      <div class="hint">Drag a wall directly in the view — the cursor changes over one.
-      Moving a wall inward compresses whatever is in the way, so the wall-force panel
-      responds live; that is the quickest way to see locked-in stress appear.</div>
       <div class="row"><label for="fTarget">target fill φ<sub>box</sub></label>
         <input type="range" id="fTarget" min="0.40" max="0.86" step="0.01" value="0.84"><input class="val num" type="number" id="fTargetv" min="0.40" max="0.86" step="0.01"></div>
       <div class="row wide">
         <button id="bAuto" type="button">Size box so the balls fill it</button></div>
-      <div class="hint" id="capHint"></div>
       <div class="row wide" style="margin-top:8px">
         <label style="margin-bottom:4px" for="fMethod">filling method</label>
         <select id="fMethod">
@@ -347,13 +384,13 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
           <option value="rainSmooth">Pluviation, frictionless — DENSE (φ≈0.845)</option>
         </select>
       </div>
+      <div class="note" id="capHint"></div>
       <div class="row"><label for="fRate">deposition rate (/s)</label>
         <input type="range" id="fRate" min="20" max="1200" step="10" value="300"><input class="val num" type="number" id="fRatev" min="20" max="1200" step="10"></div>
-      <div class="hint" id="fHint"></div>
     </div>
 
     <div class="sec">
-      <h2>Measurements</h2>
+      <h2>Measurements<button class="ghelp" type="button" data-g="g-readouts" title="What do these mean?" aria-label="Explain Measurements">?</button></h2>
       <table class="read">
         <tr><td>particles placed</td><td id="mN">0</td></tr>
         <tr><td>packing fraction φ</td><td id="mPhi">–</td></tr>
@@ -367,20 +404,15 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
     </div>
 
     <div class="sec">
-      <h2>Export</h2>
+      <h2>Export<button class="ghelp" type="button" data-g="g-worth" title="What do these mean?" aria-label="Explain Export">?</button></h2>
       <div class="btns">
         <button id="expSummary" type="button">Summary CSV</button>
         <button id="expParticles" type="button">Particles CSV</button>
       </div>
-      <div class="hint"><b>Summary</b> is one row — every setting beside every
-      measurement — so repeated runs append into a table you can plot straight away.
-      <b>Particles</b> is one row per disk (position, radius, velocity, spin,
-      contacts, load) for analysing a packing offline. Both carry the build and a
-      timestamp, so a row can always be traced back to the code that produced it.</div>
     </div>
 
     <div class="sec">
-      <h2>Wall forces</h2>
+      <h2>Wall forces<button class="ghelp" type="button" data-g="g-walls" title="What do these mean?" aria-label="Explain Wall forces">?</button></h2>
       <table class="read">
         <tr><td>total particle weight W</td><td id="wW">–</td></tr>
         <tr><td>bottom wall</td><td id="wB">–</td></tr>
@@ -397,24 +429,10 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         <span><i style="background:#3987e5"></i>packing φ</span>
         <span><i style="background:#d95926"></i>side load / W</span>
       </div>
-      <div class="hint"><b>Why X1 ≠ X2.</b> A frictional floor can hold a horizontal
-      load of up to μ<sub>w</sub>·N, so the two side walls are free to differ by that much and
-      still be in perfect static equilibrium — nothing drives them together. The
-      <b>Σ force residual</b> row is the real equilibrium test: it goes to ~0% when the bed
-      is static, whatever X1−X2 happens to be. To force X1 = X2 exactly, set
-      <b>μ<sub>w</sub> = 0</b> (frictionless walls, frictional grains) — the standard setup
-      for a clean stress measurement, and the default here.
-      <br><br>Two of these are <b>not</b> supposed to be zero. The floor must carry the
-      whole weight (bottom/W → 1), and a bed under gravity always pushes outward — Rankine gives
-      side/W ≈ K·H/L with K ≈ 0.3–0.5, so <b>K</b> is the number to judge, not the raw force.
-      <br><br><b>The real test of minimum wall force is Unload.</b> It sets g = 0. A packing that
-      merely settled goes slack and every wall drops to zero. A packing that was squeezed against
-      the walls keeps pushing — that residue is locked-in stress, and it is the thing worth
-      avoiding.</div>
     </div>
 
     <div class="sec">
-      <h2>Display</h2>
+      <h2>Display<button class="ghelp" type="button" data-g="g-worth" title="What do these mean?" aria-label="Explain Display">?</button></h2>
       <div class="row wide">
         <select id="dColor">
           <option value="size">colour by size</option>
@@ -436,13 +454,55 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 <div id="help" role="dialog" aria-modal="true" aria-label="Glossary">
   <div id="helpBox">
-    <button id="helpClose" type="button">Close</button>
+    <button id="helpClose" type="button" title="Close — or click anywhere outside this box, or press Esc">&times;</button>
     <h2>What everything means</h2>
     <p class="lead">Everything is SI inside (metres, kilograms, newtons). Only the display
     converts: grains in mm, the box in cm, forces in N or kN. The disks are unit-thickness,
-    so a force here is really force <i>per metre of depth</i>.</p>
+    so a force here is really force <i>per metre of depth</i>.<br>
+    <span style="opacity:.7">Click anywhere outside this box, or press Esc, to close it.</span></p>
 
-    <h3>Top-left readouts</h3>
+    <h3 id="g-particles">Particles</h3>
+    <dl>
+      <dt>count N</dt><dd>How many disks to create on the next Fill.</dd>
+      <dt>d</dt><dd>Mean grain diameter in mm. 30 mm is gravel; real bead experiments
+        run 1&ndash;3 mm, and the control reaches down to 2.</dd>
+      <dt>&plusmn;x</dt><dd><b>Dispersity.</b> Diameters are drawn uniformly from
+        d(1&plusmn;x). At 0% every grain is identical and the packing crystallises
+        readily; 10&ndash;20% suppresses that and is what most real powders look like.</dd>
+      <dt>&rho;</dt><dd>Grain density, kg/m&sup3;. Applies to grains already on screen:
+        their mass and inertia are re-derived at once.</dd>
+      <dt>next fill</dt><dd>N, d and &plusmn;x decide <i>which grains exist</i>, so they
+        take effect when you next press Fill. Everything else is live.</dd>
+    </dl>
+
+    <h3 id="g-box">Box &amp; filling</h3>
+    <dl>
+      <dt>X1 X2 Y1 Y2</dt><dd>Wall positions in cm. Type a number, drag the slider, or
+        drag the wall itself in the view. Select a wall by clicking it, then nudge with
+        the arrow keys (1 mm, or 10 mm with Shift).</dd>
+      <dt>target fill</dt><dd>What fraction of the box the grains should occupy when
+        <b>Size box</b> computes a box for them.</dd>
+      <dt>Pluviation</dt><dd>Rains grains in from above with friction already active, so
+        contacts lock on first touch and the bed arrests before it can rearrange &mdash; the
+        loosest route. Measured &phi; &asymp; 0.828, and raising &mu; opens it further
+        (&phi; &asymp; 0.822 at &mu; = 0.8). It needs free space above the bed, so
+        <b>Size box</b> leaves headroom for it.</dd>
+      <dt>Pluviation, frictionless</dt><dd>The same deposition with &mu; forced to 0, so disks
+        roll into the deepest well available; friction is restored once the bed is quiet.
+        Measured &phi; &asymp; 0.845, Z &asymp; 4.3 &mdash; the densest route at realistic
+        dispersity.</dd>
+      <dt>Grow in place</dt><dd>Seeds scattered at 35% radius, then inflated where they lie
+        under gravity but without friction. No deposition front, so the packing is isotropic.
+        Measured &phi; &asymp; 0.836, Z &asymp; 4.1.</dd>
+      <dt>Lattice release</dt><dd>A jittered triangular lattice released at once. Crystallises
+        only when the grains are all one size: &phi; &asymp; 0.869 at &plusmn;0% (the hexagonal
+        limit is 0.9069), but &asymp; 0.820 at &plusmn;15%, where dispersity frustrates the
+        lattice and it becomes the <i>loosest</i> of the four.</dd>
+      <dt>deposition rate</dt><dd>How fast grains are released, per second of simulated
+        time. Slower gives a looser bed.</dd>
+    </dl>
+
+    <h3 id="g-readouts">Top-left readouts</h3>
     <dl>
       <dt>particles</dt><dd>How many disks currently exist.</dd>
       <dt>t &hellip; s</dt><dd><b>Simulated time, in seconds</b> &mdash; how long the grains have
@@ -469,7 +529,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         &phi; and Z stop being trustworthy.</dd>
     </dl>
 
-    <h3>The wall table</h3>
+    <h3 id="g-walls">The wall table</h3>
     <dl>
       <dt>X1 X2 Y1 Y2</dt><dd>The four walls: left, right, floor, lid.</dd>
       <dt>normal</dt><dd>Force pressing straight onto that wall.</dd>
@@ -491,7 +551,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         1 &minus; sin(atan &mu;), about 0.71 at &mu; = 0.3.</dd>
     </dl>
 
-    <h3>Contact model</h3>
+    <h3 id="g-contact">Contact model</h3>
     <dl>
       <dt>k<sub>n</sub></dt><dd>Normal contact stiffness, in N/m. Force = k<sub>n</sub> &times;
         overlap, so a stiffer setting means less interpenetration. It must grow with bed
@@ -507,7 +567,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         last one.</dd>
     </dl>
 
-    <h3>Worth knowing</h3>
+    <h3 id="g-worth">Worth knowing</h3>
     <dl>
       <dt>next fill</dt><dd>N, d and &plusmn;x decide <i>which grains exist</i>, so they take
         effect when you next press Fill. Every other setting applies immediately to the grains
@@ -585,7 +645,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-06b';
+const BUILD = '2026-09-06c';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1021,7 +1081,8 @@ function fillCapacityNote(){
   if(bedPhi > 0.80) t += ' <b>Note:</b> a box the balls exactly fill is a box they are '+
     'pressed into — you cannot have zero dead space AND zero wall force. Check '+
     '<b>locked-in stress</b> after Unload.';
-  $('capHint').innerHTML = t;
+  const el = $('capHint');
+  if(el) el.innerHTML = t;
 }
 
 function startFill(){
@@ -1471,7 +1532,10 @@ function drawChart(){
 }
 
 /* ============================== readouts ================================== */
-const fmtN = v => v>=1000 ? (v/1000).toFixed(2)+' kN' : v.toFixed(1)+' N';
+/* One more digit than feels necessary: these are read side by side and
+   compared, and a force that differs in the second decimal is a force whose
+   difference you want to see. */
+const fmtN = v => v>=1000 ? (v/1000).toFixed(3)+' kN' : v.toFixed(2)+' N';
 function paintReadouts(){
   const m = S.meas, W = totalWeight();
   const side = W>0 ? (S.wall.L+S.wall.R)/W : 0;
@@ -1510,25 +1574,25 @@ function paintReadouts(){
   const resY = S.wall.B - S.wall.T - S.shear.L + S.shear.R - W;
   const ref = Math.max(W, 1e-9);
   const rc = v => Math.abs(v)/ref < 0.02 ? 'ok' : Math.abs(v)/ref < 0.10 ? 'warn' : 'bad';
-  $('fResX').innerHTML = '<span class="'+rc(resX)+'">'+(100*resX/ref).toFixed(1)+'%</span>';
-  $('fResY').innerHTML = '<span class="'+rc(resY)+'">'+(100*resY/ref).toFixed(1)+'%</span>';
+  $('fResX').innerHTML = '<span class="'+rc(resX)+'">'+(100*resX/ref).toFixed(2)+'%</span>';
+  $('fResY').innerHTML = '<span class="'+rc(resY)+'">'+(100*resY/ref).toFixed(2)+'%</span>';
 
   $('hN').textContent = S.P.length;
   $('hT').textContent = S.t.toFixed(2);
   $('hPhi').textContent = m.phi ? m.phi.toFixed(4) : '–';
-  $('hZ').textContent  = m.Z  ? m.Z.toFixed(2)  : '–';
-  $('hZs').textContent = m.Zs ? m.Zs.toFixed(2) : '–';
-  $('hKE').textContent  = kineticEnergy().toExponential(1)+' J';
+  $('hZ').textContent  = m.Z  ? m.Z.toFixed(3)  : '–';
+  $('hZs').textContent = m.Zs ? m.Zs.toFixed(3) : '–';
+  $('hKE').textContent  = kineticEnergy().toExponential(2)+' J';
   const ovCls = S.overlapPct < 1 ? 'ok' : S.overlapPct < 5 ? 'warn' : 'bad';
-  $('hOv').innerHTML = '<span class="'+ovCls+'">'+S.overlapPct.toFixed(2)+'% d</span>';
+  $('hOv').innerHTML = '<span class="'+ovCls+'">'+S.overlapPct.toFixed(3)+'% d</span>';
 
   $('mN').textContent = S.P.length + (S.toPlace? ' (+'+S.toPlace+' queued)' : '');
   $('mPhi').textContent = m.phi ? m.phi.toFixed(4) : '–';
-  $('mZ').textContent   = m.Z  ? m.Z.toFixed(2)  : '–';
-  $('mZs').textContent  = m.Zs ? m.Zs.toFixed(2) : '–';
-  $('mRat').textContent = m.cnt ? (100*m.rat).toFixed(1)+'%' : '–';
-  $('mH').textContent   = m.h ? (m.h-S.box.y1).toFixed(3)+' m' : '–';
-  $('mFill').textContent= m.fill ? (100*m.fill).toFixed(1)+'%' : '–';
+  $('mZ').textContent   = m.Z  ? m.Z.toFixed(3)  : '–';
+  $('mZs').textContent  = m.Zs ? m.Zs.toFixed(3) : '–';
+  $('mRat').textContent = m.cnt ? (100*m.rat).toFixed(2)+'%' : '–';
+  $('mH').textContent   = m.h ? ((m.h-S.box.y1)*100).toFixed(2)+' cm' : '–';
+  $('mFill').textContent= m.fill ? (100*m.fill).toFixed(2)+'%' : '–';
   if(S.jammedAt){
     const pct = 100*2*S.jammedAt/S.d;
     $('mGrain').innerHTML = '<span class="warn">'+pct.toFixed(0)+'% of d — jam-limited</span>';
@@ -1539,7 +1603,7 @@ function paintReadouts(){
   $('wL').textContent = fmtN(S.wall.L);
   $('wR').textContent = fmtN(S.wall.R);
   $('wT').textContent = fmtN(S.wall.T);
-  $('wSide').textContent = (100*side).toFixed(1)+'%';
+  $('wSide').textContent = (100*side).toFixed(2)+'%';
   $('wBW').textContent   = W>0 ? (S.wall.B/W).toFixed(3) : '–';
 
   /* effective earth-pressure coefficient: side·L /(W·H). Rankine puts a settled
@@ -1781,7 +1845,7 @@ function syncWallUI(){
    forces in N or kN. In 2D the disks are unit-thickness, so every force here is
    really force per metre of depth (N/m); the ratios that matter — bottom/W, K —
    are dimensionless either way. */
-const CM = v => (v*100).toFixed(1);            // metres → cm
+const CM = v => (v*100).toFixed(2);            // metres → cm, to 0.1 mm
 const WALL_STEP = 0.001;                       // 1 mm — the finest useful nudge
 const snapWall = v => Math.round(v/WALL_STEP)*WALL_STEP;
 const WALL_NAMES = {x1:'X1 left', x2:'X2 right', y1:'Y1 floor', y2:'Y2 lid'};
@@ -1909,7 +1973,27 @@ $('helpClose').addEventListener('click', ()=> showHelp(false));
 helpBox.addEventListener('click', e => { if(e.target === helpBox) showHelp(false); });
 window.addEventListener('keydown', e => { if(e.key === 'Escape') showHelp(false); });
 
-/* the readouts overlay the packing, so let them be dismissed; remember it */
+/* Each panel section carries a small marker where a paragraph of prose used to
+   be. It opens the glossary AT that section: a glossary you still have to
+   search through is one more task rather than an answer. */
+function openHelp(gid){
+  showHelp(true);
+  const h = gid && $(gid);
+  if(!h) return;
+  /* The overlay was display:none an instant ago. Reading a layout property
+     forces the style recalculation now, so the box has a scroll height to
+     scroll within; deferring to requestAnimationFrame would look identical
+     until the page is in a background tab, where rAF never fires at all. */
+  void helpBox.offsetHeight;
+  h.scrollIntoView({block:'start'});
+  h.classList.add('flash');
+  setTimeout(()=> h.classList.remove('flash'), 1800);
+}
+document.querySelectorAll('.ghelp').forEach(b => {
+  b.addEventListener('click', ()=> openHelp(b.dataset.g));
+});
+
+/* the readouts can be collapsed to widen the view; remember which way */
 function setHud(on){
   $('hud').className = on ? '' : 'hidden';
   $('bHud').textContent = on ? 'Hide readouts' : 'Show readouts';
@@ -1928,6 +2012,7 @@ function setScale(v){
   UI = v;
   document.documentElement.style.setProperty('--ui', String(v));
   try { localStorage.setItem('glab_scale', String(v)); } catch {}
+  sizeLab();         // larger text makes the header taller, so the columns shrink
   resize();          // the canvas box changed width; re-measure and re-frame
 }
 $('uiScale').addEventListener('change', e => setScale(+e.target.value));
@@ -2005,23 +2090,33 @@ $('expParticles').addEventListener('click', ()=>{
   downloadCSV('granularlab-particles-'+stamp()+'.csv', rows);
 });
 
-/* Everything back to how the page loaded. Snapshotted after init so it reflects
-   the real starting values, rather than a second hand-maintained list that can
-   drift away from them. */
-let DEFAULTS = null;
-function captureDefaults(){
-  DEFAULTS = {
-    /* MODEL values, not slider positions. Round-tripping through a slider
-       re-quantises to its step: k_n came back as 1995262 rather than 2e6, because
-       the logarithmic slider steps by 0.05. Reset restores exactly what was taken. */
+/* ------------------------------------------------------ settings snapshot --
+   One description of "the settings", shared by the two things that would
+   otherwise each keep their own list and slowly drift apart: Reset, and the
+   workspace tabs below.
+
+   MODEL values, not slider positions. Round-tripping through a slider
+   re-quantises to its step: k_n came back as 1995262 rather than 2e6, because
+   the logarithmic slider steps by 0.05. */
+function snapshot(){
+  return {
+    v: 1,
     ctl: Object.fromEntries(Object.keys(CTL).filter(id => !CTL[id].wall)
                                             .map(id => [id, CTL[id].get()])),
     N: S.N,
     selects: {fMethod:$('fMethod').value, dColor:$('dColor').value},
     checks:  {dSpin:$('dSpin').checked, dRegion:$('dRegion').checked, dNet:$('dNet').checked},
-    box: {...S.box}
+    /* the TARGET walls: mid-sweep, where they are headed is the setting; where
+       they happen to be this frame is not */
+    box: {...S.boxT}
   };
 }
+/* Everything back to how the page loaded. Snapshotted after init so it reflects
+   the real starting values, rather than a second hand-maintained list that can
+   drift away from them. */
+let DEFAULTS = null;
+function captureDefaults(){ DEFAULTS = snapshot(); }
+
 /* Drive each control through its own listener instead of writing S directly:
    one source of truth for formatting, and the readouts stay in step. */
 function setControl(id, value, kind){
@@ -2029,22 +2124,80 @@ function setControl(id, value, kind){
   if(kind === 'check') el.checked = value; else el.value = value;
   el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', {bubbles:true}));
 }
-function resetAll(){
-  if(!DEFAULTS) return;
-  for(const [id,v] of Object.entries(DEFAULTS.ctl)){
-    CTL[id].set(v); if(CTL[id].after) CTL[id].after();
+/* Every field is checked before it is used. A snapshot may have come back out
+   of localStorage, written by an older build with controls this one has since
+   renamed or dropped, and one stray undefined reaching S turns every subsequent
+   force into NaN — a failure that shows up as an empty screen, far from here. */
+function applySnapshot(snap, note){
+  if(!snap) return;
+  for(const [id,v] of Object.entries(snap.ctl || {})){
+    if(!CTL[id] || !isFinite(v)) continue;
+    CTL[id].set(+v); if(CTL[id].after) CTL[id].after();
   }
-  S.N = DEFAULTS.N; $('pN').value = S.N;
-  for(const [id,v] of Object.entries(DEFAULTS.selects)) setControl(id, v);
-  for(const [id,v] of Object.entries(DEFAULTS.checks))  setControl(id, v, 'check');
-  /* set target AND actual so a reset lands at once instead of sweeping there */
-  for(const k of ['x1','x2','y1','y2']){ S.boxT[k]=DEFAULTS.box[k]; S.box[k]=DEFAULTS.box[k]; }
+  if(isFinite(snap.N)){ S.N = clamp(Math.round(snap.N), 1, 20000); $('pN').value = S.N; }
+  for(const [id,v] of Object.entries(snap.selects || {})){
+    const el = $(id);
+    if(el && [...el.options].some(o => o.value === v)) setControl(id, v);
+  }
+  for(const [id,v] of Object.entries(snap.checks || {})) setControl(id, !!v, 'check');
+  /* set target AND actual so the change lands at once instead of sweeping there */
+  const bx = snap.box || {};
+  if(['x1','x2','y1','y2'].every(k => isFinite(bx[k])) && bx.x2 > bx.x1 && bx.y2 > bx.y1)
+    for(const k of ['x1','x2','y1','y2']){ S.boxT[k] = +bx[k]; S.box[k] = +bx[k]; }
   PL.valid = false; S.sel = null; S.drag = null;
   syncWallUI(); syncControls(); clearAll(); fitView(); fillCapacityNote(); updateHint();
   const ph = $('phase');
-  if(ph){ ph.textContent = 'reset to defaults'; ph.style.color = 'var(--accent)'; }
+  if(ph && note){ ph.textContent = note; ph.style.color = 'var(--accent)'; }
 }
+function resetAll(){ applySnapshot(DEFAULTS, 'reset to defaults'); saveTab(true); }
 $('bReset').addEventListener('click', resetAll);
+
+/* ------------------------------------------------------------ workspaces --
+   Three tabs, each remembering its own settings in this browser, so a loose
+   packing and a dense one can be set up side by side and switched between
+   without writing either configuration down, and both survive closing the page.
+
+   Settings only, not the packing: a bed poured into one box does not belong
+   inside another box's walls, so switching empties the box and you pour again.
+   Reset still works, and resets whichever tab you are on. */
+const TABS = [1,2,3], TAB_NAME = {1:'A', 2:'B', 3:'C'};
+const tabKey = i => 'glab_tab_' + i;
+let activeTab = 1, lastSaved = '';
+
+function readTab(i){
+  try {
+    const raw = localStorage.getItem(tabKey(i));
+    const o = raw ? JSON.parse(raw) : null;
+    return (o && typeof o === 'object') ? o : null;
+  } catch { return null; }        // private mode, or somebody hand-edited it
+}
+/* Settings change through sliders, number boxes, wall drags, the arrow keys and
+   Size box. Rather than hook all six of those paths and eventually miss one,
+   watch the snapshot itself and write only when it differs. */
+function saveTab(force){
+  try {
+    const j = JSON.stringify(snapshot());
+    if(!force && j === lastSaved) return;
+    localStorage.setItem(tabKey(activeTab), j);
+    localStorage.setItem('glab_tab_active', String(activeTab));
+    lastSaved = j;
+  } catch {}                      // quota or private mode: the lab still runs
+}
+function selectTab(i, initial){
+  if(!initial && i === activeTab) return;
+  if(!initial) saveTab();         // keep what the tab you are leaving was showing
+  activeTab = i;
+  for(const t of TABS) $('tab'+t).className = 'tab' + (t === i ? ' on' : '');
+  const saved = readTab(i);
+  applySnapshot(saved || DEFAULTS,
+    'workspace ' + TAB_NAME[i] +
+    (saved ? ' \u2014 settings restored, box emptied' : ' \u2014 defaults'));
+  saveTab(true);                  // the tab now exists, at exactly these values
+}
+for(const t of TABS) $('tab'+t).addEventListener('click', ()=> selectTab(t));
+setInterval(saveTab, 1000);
+addEventListener('pagehide', ()=> saveTab());
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveTab(); });
 
 $('bFill').addEventListener('click', ()=>{
   /* Visible acknowledgement the instant the handler runs. Without it a click
@@ -2085,14 +2238,36 @@ const HINTS = {
   grow:'Seeds scattered at 35% radius, then inflated in place under gravity but without friction. '+
        'No deposition front, so the packing is isotropic. Measured φ ≈ 0.836, Z ≈ 4.1.'
 };
-function updateHint(){ $('fHint').textContent = HINTS[$('fMethod').value]; fillCapacityNote(); }
+/* The methods are described in the glossary now, under Box & filling — the ?
+   beside that heading. The same text stays on the control as a tooltip, which
+   costs no panel height. */
+function updateHint(){
+  const sel = $('fMethod');
+  if(sel) sel.title = HINTS[sel.value] || '';
+  fillCapacityNote();
+}
 
-window.addEventListener('resize', ()=>{ resize(); });
+/* The two columns fill whatever the viewport has left below the header and the
+   tab strip. Any calc(100vh - fixed) guess goes wrong the moment the header
+   wraps -- which it does at narrow widths and at the larger text sizes -- so
+   measure where #main actually starts rather than predicting it. */
+function sizeLab(){
+  const m = $('main');
+  if(!m) return;
+  const top = m.getBoundingClientRect().top + (window.scrollY || 0);
+  m.style.setProperty('--labH', clamp(innerHeight - top - 6, 320, 1000) + 'px');
+}
+window.addEventListener('resize', ()=>{ sizeLab(); resize(); });
 /* the panel can wrap or the pane can be resized without a window resize event */
 if(typeof ResizeObserver !== 'undefined'){
   new ResizeObserver(()=>resize()).observe(cv.parentElement);
 }
-resize(); recomputeDt(); syncWallUI(); syncControls(); updateHint(); clearAll(); captureDefaults();
+sizeLab(); resize(); recomputeDt(); syncWallUI(); syncControls(); updateHint(); clearAll();
+captureDefaults();
+/* Only now that DEFAULTS exists can a tab fall back to them. */
+let startTab = 1;
+try { startTab = clamp(Math.round(+localStorage.getItem('glab_tab_active')) || 1, 1, 3); } catch {}
+selectTab(startTab, true);
 
 /* ==========================================================================
    FEEDBACK — anonymous, timestamped, stored server-side in SQLite.
@@ -2288,19 +2463,35 @@ FB.init();
      shipped at 2e4 while the slider read 2e6. Say so at startup. */
   for(const id in CTL){
     const el = $(id); if(!el || !el.hasAttribute('value')) continue;
-    const authored = +el.getAttribute('value'), actual = toSlider(id, CTL[id].get());
+    /* Against DEFAULTS, not against live state. A workspace tab legitimately
+       restores values that differ from the markup, and by the time this runs it
+       already has — comparing to those would make this guard warn on every
+       reload and so make it worth ignoring. */
+    const model = CTL[id].wall ? (DEFAULTS.box[id.slice(1).toLowerCase()] * 100)
+                               : DEFAULTS.ctl[id];
+    if(model === undefined) continue;
+    const authored = +el.getAttribute('value'), actual = toSlider(id, model);
     if(Math.abs(authored - actual) > Math.max(1e-6, Math.abs(actual)*0.01))
       console.warn('control default drift:', id, 'markup says', authored,
-                   'but state gives', +actual.toFixed(4));
+                   'but defaults give', +actual.toFixed(4));
   }
-  setTimeout(()=>{
+  /* A page opened into a background tab — middle-clicked, restored on startup —
+     receives no animation frames at all until it is looked at. That is
+     indistinguishable from a startup exception from here, so only accuse a page
+     that has actually been visible, and re-arm when one first becomes so. */
+  function stallCheck(){
+    if(document.hidden) return;
     if(frameCount === 0){
       const el = document.getElementById('stalled');
       if(el) el.className = 'on';
       console.error('granularlab-2d: requestAnimationFrame never fired. '+
         'Build ' + BUILD + '. Stale cache or a startup exception.');
     }
-  }, 2000);
+  }
+  setTimeout(stallCheck, 2000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden && frameCount === 0) setTimeout(stallCheck, 2000);
+  });
 })();
 
 requestAnimationFrame(frame);
