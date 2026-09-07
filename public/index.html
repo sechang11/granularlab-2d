@@ -35,21 +35,32 @@ header .tag{font-size:calc(11px * var(--ui));color:var(--muted);border:1px solid
 #uiScale{background:var(--surface2);color:var(--ink2);border:0;font:inherit;
   font-size:calc(11px * var(--ui));margin-left:4px;cursor:pointer}
 
-/* Three workspaces. Each holds its own settings, kept in this browser, so two
-   configurations can be compared without writing either of them down. */
-#tabs{display:flex;align-items:center;gap:6px;padding:5px 16px;flex-wrap:wrap;
-  border-bottom:1px solid var(--baseline);background:var(--surface)}
-#tabs .tlbl{font-size:calc(10px * var(--ui));letter-spacing:.12em;text-transform:uppercase;
-  color:var(--muted);margin-right:4px}
-#tabs .tab{background:transparent;border:1px solid var(--baseline);color:var(--ink2);
-  border-radius:6px;padding:3px 15px;cursor:pointer;font:inherit;font-weight:600;
-  font-size:calc(12px * var(--ui))}
-#tabs .tab:hover{border-color:var(--accent);color:var(--ink)}
-#tabs .tab.on{border-color:var(--accent);color:var(--accent);background:var(--surface2)}
-#tabs .tnote{font-size:calc(10.5px * var(--ui));color:var(--muted);margin-left:8px}
+/* Three workspaces, as a segmented control inside the header. A strip of its own
+   costs ~30px of the view on every screen for a control you touch rarely. */
+header .tabs{display:inline-flex;align-items:center;padding:0 3px 0 9px}
+header .tabs .tlbl{font-size:calc(9.5px * var(--ui));letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);margin-right:7px}
+header .tab{background:transparent;border:0;color:var(--ink2);cursor:pointer;
+  font:inherit;font-weight:600;font-size:calc(11px * var(--ui));
+  padding:2px 9px;border-radius:7px;line-height:1.45}
+header .tab:hover{color:var(--ink);background:var(--surface2)}
+header .tab.on{color:var(--accent);background:var(--surface2)}
+/* The header already wrapped to two rows at 1024px before the workspace control
+   joined it, and a wrapped header costs ~38px of the view on every screen that
+   narrow. The method descriptor is the least useful thing competing for that
+   space, so below 1200px the space is worth more than the label. */
+@media (max-width: 1200px){
+  header{gap:10px}
+  header .tag.method{display:none}
+}
+/* Narrower still, the two timing diagnostics go as well. They are read once to
+   confirm the model is stepping sensibly, not continuously; every note sent
+   from the feedback box carries dt and the substep count anyway, and so does
+   every exported CSV. The four controls and the build tag stay. */
+@media (max-width: 1120px){ header .tag.diag{display:none} }
 
-/* The readouts have their own column now, but it can still be collapsed to give
-   the whole width to the packing. */
+/* The readouts sit over the packing, so let them be dismissed when they cover
+   something you want to see. */
 #hud.hidden{display:none}
 
 /* Glossary overlay */
@@ -75,17 +86,16 @@ header .tag{font-size:calc(11px * var(--ui));color:var(--muted);border:1px solid
 #main{flex:0 0 auto;display:flex;min-height:0;--labH:clamp(360px, calc(100vh - 64px), 1000px)}
 #simwrap{flex:1;position:relative;min-width:0;background:#0a0a0a;height:var(--labH)}
 #sim{display:block;width:100%;height:100%}
-/* The readouts used to float over the packing and covered it. They now have
-   their own column between the view and the controls, so both are fully visible
-   at once. On a narrow screen everything stacks instead. */
-/* Sized by its content, not by a guess: the wall table is five nowrap columns
-   wide and a fixed 228px cut the shear column off and produced a horizontal
-   scrollbar. max-content also tracks the text-size selector for free. */
-#hud{flex:0 0 auto;width:max-content;
-  min-width:calc(200px * var(--ui));max-width:calc(360px * var(--ui));overflow-y:auto;
-  background:var(--surface);border-left:1px solid var(--baseline);
-  padding:10px 12px;line-height:1.7;height:var(--labH);
-  font-size:calc(12px * var(--ui));color:var(--ink2);font-variant-numeric:tabular-nums}
+/* An overlay, NOT a column. As a column its width was `max-content`, which made
+   it track the widest readout — and the readouts change every frame. The width
+   swung 315 -> 336 -> 315 -> 324px on ordinary value churn, #simwrap swung 21px
+   with it, and the ResizeObserver watching #simwrap called resize() each time:
+   cv.width reassigned (which clears the canvas) and fitView() re-derived the
+   scale. Several times a second. That was the flicker. Nothing whose size
+   depends on live text may sit in the same flex row as the canvas. */
+#hud{position:absolute;top:10px;left:12px;font-size:calc(12px * var(--ui));color:var(--ink2);
+  background:rgba(10,10,10,.72);border:1px solid var(--border);border-radius:6px;
+  padding:8px 11px;pointer-events:none;line-height:1.7;font-variant-numeric:tabular-nums}
 #hud b{color:var(--ink);font-weight:600}
 #hud .lbl{color:var(--muted)}
 #hWalls{margin-top:6px;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:calc(11.5px * var(--ui))}
@@ -120,23 +130,11 @@ header .tag{font-size:calc(11px * var(--ui));color:var(--muted);border:1px solid
 /* Below ~820px the 330px panel leaves the canvas too little room — under about
    400px it left less than the padding, which is what drove the scale negative.
    Stack instead: canvas on top, controls beneath, both full width. */
-@media (max-width: 1180px){
-  /* Not enough width for three columns without squeezing the view. Give the
-     view a full-width row of its own and put the readouts beside the controls
-     underneath it — both rows keep an explicit height so the panel still
-     scrolls inside itself rather than growing to its full 2800px. */
-  #main{flex-wrap:wrap;--rowH:clamp(300px, 46vh, 520px)}
-  #simwrap{flex:1 1 100%;height:var(--rowH)}
-  #hud{flex:1 1 240px;width:auto;max-width:none;height:var(--rowH);
-    border-left:0;border-top:1px solid var(--baseline)}
-  #panel{height:var(--rowH);border-top:1px solid var(--baseline)}
-}
 @media (max-width: 820px){
   #main{flex-direction:column}
   #simwrap{width:100%;height:clamp(300px, 58vh, 560px);flex:0 0 auto}
   #panel{width:100%;flex:1 1 auto;height:auto;max-height:none;
     border-left:0;border-top:1px solid var(--baseline)}
-  #hud{flex:0 0 auto;width:100%;height:auto;max-height:none}
   #hud{font-size:calc(11px * var(--ui));padding:6px 9px}
   .fb-wrap{padding:0 16px}
 }
@@ -257,10 +255,14 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 <header>
   <h1>Granular Box — <span>2D Packing Lab</span></h1>
-  <span class="tag" id="tagDt">dt —</span>
-  <span class="tag" id="tagRate">— × real time</span>
+  <span class="tag tabs" role="group" aria-label="Workspace"
+        title="Three workspaces. Each keeps its own settings in this browser. Switching empties the box; Reset returns this one to the defaults.">
+    <span class="tlbl">workspace</span><button class="tab on" id="tab1" type="button">A</button><button class="tab" id="tab2" type="button">B</button><button class="tab" id="tab3" type="button">C</button>
+  </span>
+  <span class="tag diag" id="tagDt">dt —</span>
+  <span class="tag diag" id="tagRate">— × real time</span>
   <div class="sp"></div>
-  <span class="tag">Cundall–Strack soft-disk DEM</span>
+  <span class="tag method">Cundall–Strack soft-disk DEM</span>
   <span class="tag" id="buildTag" title="build">build —</span>
   <button class="tag tagbtn" id="bHelp" type="button" title="What every symbol means">? Glossary</button>
   <button class="tag tagbtn" id="bHud" type="button" title="Hide the readouts and give the whole width to the packing">Hide readouts</button>
@@ -271,28 +273,10 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
     </select></label>
 </header>
 
-<nav id="tabs" aria-label="Workspaces">
-  <span class="tlbl">workspace</span>
-  <button class="tab on" id="tab1" type="button">A</button>
-  <button class="tab" id="tab2" type="button">B</button>
-  <button class="tab" id="tab3" type="button">C</button>
-  <span class="tnote">each keeps its own settings in this browser &middot; switching empties the box &middot; Reset returns this one to defaults</span>
-</nav>
-
 <div id="main">
   <div id="simwrap">
     <canvas id="sim"></canvas>
-    <div id="phase">idle</div>
-    <div id="stalled"><div>
-      <h3>The animation loop never started</h3>
-      <p>The physics and rendering are driven by <code>requestAnimationFrame</code>, and it has
-      not fired since this page loaded. Almost always this is a stale cached copy: reload with
-      <code>Ctrl+Shift+R</code> (<code>Cmd+Shift+R</code> on a Mac).</p>
-      <p>If it persists, open the console — the first error there is the cause.</p>
-    </div></div>
-  </div>
-
-  <aside id="hud">
+    <div id="hud">
       <div><span class="lbl">particles</span> <b id="hN">0</b> &nbsp; <span class="lbl">t</span> <b id="hT">0.00</b> s &nbsp; <b id="hFps"></b></div>
       <div><span class="lbl">packing φ</span> <b id="hPhi">–</b> &nbsp; <span class="lbl">Z</span> <b id="hZ">–</b> &nbsp; <span class="lbl">Z*</span> <b id="hZs">–</b></div>
       <div><span class="lbl">KE</span> <b id="hKE">–</b> &nbsp; <span class="lbl">max overlap</span> <b id="hOv">–</b></div>
@@ -307,7 +291,16 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         <tr><td class="lbl">Σ force residual</td><td></td><td id="fResX">–</td><td id="fResY">–</td><td class="lbl">x , y</td></tr>
       </table>
       <div id="badge">✓ NO LOCKED-IN STRESS</div>
-  </aside>
+    </div>
+    <div id="phase">idle</div>
+    <div id="stalled"><div>
+      <h3>The animation loop never started</h3>
+      <p>The physics and rendering are driven by <code>requestAnimationFrame</code>, and it has
+      not fired since this page loaded. Almost always this is a stale cached copy: reload with
+      <code>Ctrl+Shift+R</code> (<code>Cmd+Shift+R</code> on a Mac).</p>
+      <p>If it persists, open the console — the first error there is the cause.</p>
+    </div></div>
+  </div>
 
   <div id="panel">
 
@@ -645,7 +638,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-06c';
+const BUILD = '2026-09-06d';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1366,8 +1359,16 @@ let VW=0, VH=0, sc=1, ox=0, oy=0;
 function resize(){
   const r = cv.parentElement.getBoundingClientRect();
   const dpr = Math.min(2, window.devicePixelRatio||1);
-  cv.width = Math.max(1,Math.round(r.width*dpr));
-  cv.height = Math.max(1,Math.round(r.height*dpr));
+  const w = Math.max(1, Math.round(r.width*dpr));
+  const h = Math.max(1, Math.round(r.height*dpr));
+  /* Assigning cv.width CLEARS the canvas, and fitView() re-derives the scale, so
+     running this when nothing actually changed is a visible flicker rather than
+     a harmless no-op. The ResizeObserver fires on any nudge at all — a scrollbar
+     appearing, a webfont landing, a sibling reflowing — and once fired several
+     times a second because a neighbouring column's width tracked the readouts,
+     which change every frame. Only do the work when the pixels really differ. */
+  if(cv.width === w && cv.height === h) return;
+  cv.width = w; cv.height = h;
   ctx.setTransform(dpr,0,0,dpr,0,0);
   VW = Math.max(0, r.width); VH = Math.max(0, r.height);
   fitView();     // the canvas itself changed size; reframing is expected

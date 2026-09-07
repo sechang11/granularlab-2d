@@ -269,8 +269,8 @@ plainly: **PAUSED — physics and readouts frozen**.
   shear, residual, overlap, k_n, ζ, b, μ_w — grouped by where they appear.
   In-page rather than a separate route: it is a single-file app, and help you
   must navigate away to read is help you will not read.
-- **Hide readouts** collapses the readout column and gives its width to the
-  packing. Remembered.
+- **Hide readouts** dismisses the overlay when it covers something you want to
+  see. Remembered.
 - **Text size** S/M/L/XL in the header. Remembered.
 
 The first attempt at text size did nothing at all. It set the root font-size,
@@ -285,33 +285,56 @@ across S → XL.
 The original test only asserted the style property had been set, never that any
 visible text changed — the mechanism, not the outcome. Worth remembering.
 
-## Three columns, so nothing sits on top of anything
+## The readouts are an overlay, and why the balls were flickering
 
-The readouts used to float over the packing as an overlay, which meant that at
-any useful particle count you were reading the numbers *through* the grains, and
-the only remedy was to hide them. They now have their own column between the view
-and the controls: **view | readouts | controls**, all three fully visible at once
-on a normal screen.
+A build in between moved the readouts out of the canvas overlay into a column of
+their own, so the view and the numbers would not sit on top of each other. It
+made the balls flicker so hard the client described it as a seizure. It has been
+reverted; this is what it was.
 
-The column is sized by `width: max-content` rather than a number. A fixed 228px —
-which is what a guess produced — cut the shear column off the wall table and left
-a horizontal scrollbar in a 227px box holding a 290px table. `max-content` also
-follows the text-size selector for free, which a fixed width does not.
+The column was sized `width: max-content`, which was meant to stop a fixed width
+cutting the shear column off the wall table. But `max-content` means *as wide as
+the widest line* — and the widest line is a readout that changes every frame.
+Measured directly, on nothing but ordinary value churn:
 
-Below **1180px** there is no longer room for three columns without squeezing the
-view, so the layout folds: the view takes a full-width row, and the readouts sit
-beside the controls underneath it. Below **820px** everything stacks. Both rows
-keep an explicit height at the middle breakpoint, because a panel with
-`height:auto` and 2800px of content does not scroll — it just grows.
+| readouts show | `#hud` width | `#simwrap` width |
+|---|---|---|
+| `0.00e+0 J`, `0.000% d`, `0.00 N` | 315 px | 780.4 px |
+| `1.23e-3 J`, `0.123% d`, `13282.21 N` | 336 px | 758.5 px |
+| `8.69e-8 J`, `1.657% d`, `4.19 N` | 315 px | 780.4 px |
 
-`--labH`, the height those columns share, is now **measured rather than
-predicted**. `calc(100vh - 64px)` was right until the header wrapped, which it
-does at narrow widths and at the larger text sizes; `sizeLab()` reads where
-`#main` actually starts and subtracts that.
+A `ResizeObserver` watches `#simwrap`, so each of those 21px swings called
+`resize()`, which assigns `cv.width` — **which clears the canvas** — and then
+`fitView()`, which re-derives the scale and origin. Several times a second. The
+packing was being wiped and re-framed continuously.
+
+Two fixes, because either alone would have left the trap set:
+
+1. The readouts went back to being an overlay inside `#simwrap`, so nothing whose
+   size depends on live text shares a flex row with the canvas.
+2. `resize()` returns early when the device-pixel dimensions have not actually
+   changed. A `ResizeObserver` fires on any nudge at all — a scrollbar appearing,
+   a webfont landing, a sibling reflowing — and every one of those was a canvas
+   wipe. Verified: 50 consecutive `resize()` calls with no layout change leave
+   `cv.width`, `cv.height`, `sc`, `ox` and `oy` untouched and a sentinel pixel
+   alive on the canvas, while a real size change still reframes. Over a full
+   800-grain fill and settle, `resize()` did real work **zero** times.
+
+The lesson is narrower than "don't use max-content": **never let a canvas's
+layout depend on the content of anything that updates per frame.** The coupling
+was two elements and one observer away from the thing that broke, which is why it
+looked like a rendering bug rather than a CSS one.
+
+`--labH`, the height the view and the panel share, is still measured rather than
+predicted. `calc(100vh - 64px)` was right until the header wrapped, which it does
+at narrow widths and at the larger text sizes; `sizeLab()` reads where `#main`
+actually starts and subtracts that.
 
 ## Workspace tabs
 
-Three tabs — **A, B, C** — each remembering its own settings in `localStorage`,
+Three tabs — **A, B, C** — as a segmented control **inside the existing header**.
+A strip of its own costs ~30px of the view on every screen, for a control you
+touch rarely. Each remembers its own settings in `localStorage`,
 so a loose configuration and a dense one can be set up side by side and switched
 between without writing either down, and both survive closing the page. **Reset**
 still restores the shipped defaults, to whichever tab you are on.
