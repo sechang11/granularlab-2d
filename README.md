@@ -467,6 +467,14 @@ Two different fixes, because they are two different situations:
   wall cannot move on a frozen page. Moving one while paused now says
   *"Paused — press ▶ Run to move the walls there"* instead of looking broken.
 
+### The chart kept scrolling while paused
+
+The φ / side-load trace under the wall forces was sampled outside the
+`if(S.running)` gate, so a paused page went on appending the same frozen pair ten
+times a second and scrolling the real history off the left of the chart. A pause
+was quietly destroying the record it was meant to be holding still. The trace is
+a history of the run, not of the wall clock, so it now stops with the run.
+
 ### `#phase` is a readout, not a message log
 
 The first version of that hint went into `#phase` and was invisible.
@@ -513,9 +521,22 @@ Two things are deliberately **absent** from that settings block:
 
 **Knowing it worked.** The table is at the foot of the page and usually closed,
 so a record that landed and a click that missed look identical from where you are
-standing. The button flashes and a note appears in the corner of the view —
+standing. The button lights and a note appears in the corner of the view —
 *"● Recorded — 6 rows"*, amber if the bed was still moving. `#phase` carries the
 run state and is left alone.
+
+The two are **one acknowledgement and end together**: `toast()` takes an optional
+control to light, and releases it when the note fades. The first version added a
+`.flash` class and never took it off, which was invisible under normal motion —
+the animation reverts on its own — but under `prefers-reduced-motion: reduce`
+that branch set a static green border, so the button stayed lit permanently. The
+held state is now the class rather than an animation's last frame, so both
+branches behave the same, and the class is removed on the toast's timer.
+
+`button{}` transitions `border-color` over .15s, so the lit state also sets
+`transition:none` on the way in — an acknowledgement that fades in is an
+acknowledgement you can miss. Dropping the class re-enables the transition, so it
+fades back out.
 
 The instructions are not in the pane; they are a **?** beside the Records
 heading, which opens the glossary at that section, like every other panel
@@ -543,9 +564,11 @@ past the fold. `#fb` itself is deliberately excluded from that sum: when the
 notes are open you have asked for them, and the page is expected to scroll;
 shrinking the view to fit a form would be the wrong trade.
 
-The bar holds **two panes** — Notes and Records. Clicking the one already open
-closes it, so the bar is a toggle and a switch at once, and which pane you left
-open is remembered along with the readout toggle and the text size.
+The bar holds **two panes** — **Notes** on the left, **Records** on the far
+right, with the credit filling between them and giving way first when the bar
+runs short of room. Clicking the pane already open closes it, so the bar is a
+toggle and a switch at once, and which pane you left open is remembered along
+with the readout toggle and the text size.
 
 A full-width section, now behind that bar, collects **anonymous, timestamped**
 notes into SQLite. No name, no account, no IP is stored.

@@ -126,14 +126,23 @@ header .tab.on{color:var(--accent);background:var(--surface2)}
   transition:opacity .18s ease, transform .18s ease}
 #toast.on{opacity:1;transform:none}
 #toast.warn{color:var(--warn);border-color:var(--warn)}
+/* A pulse and a held state. They are one acknowledgement, so they end together:
+   the button going quiet is what tells you the note you may have missed has
+   gone. The held state is the CLASS, not the animation's last frame — the
+   previous rule made the reduced-motion branch's green border permanent,
+   because nothing ever took .flash off again. */
 @keyframes recflash{
-  0%   {background:var(--ok); color:#0d0d0d; border-color:var(--ok)}
+  0%   {background:var(--ok); color:#0d0d0d}
   100% {background:transparent}
 }
-#bRecord.flash{animation:recflash .55s ease-out}
+/* transition:none on the way IN. button{} transitions border-color over .15s,
+   and an acknowledgement that fades in is an acknowledgement you can miss;
+   dropping the class re-enables that transition, so it fades back out. */
+#bRecord.flash{border-color:var(--ok);color:var(--ok);transition:none;
+  animation:recflash .55s ease-out}
 @media (prefers-reduced-motion: reduce){
   #toast{transition:none}
-  #bRecord.flash{animation:none;border-color:var(--ok);color:var(--ok)}
+  #bRecord.flash{animation:none}
 }
 
 #phase{position:absolute;bottom:12px;left:12px;font-size:calc(12px * var(--ui));color:var(--accent);
@@ -242,7 +251,9 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 #fbToggle[aria-expanded="true"] .chev{transform:rotate(90deg);color:var(--accent)}
 #fbBadge{color:var(--accent);font-variant-numeric:tabular-nums}
 #fbBadge:empty{display:none}
-#credit{flex:1 1 320px;min-width:0;color:var(--muted);font-size:calc(11.5px * var(--ui));
+/* between the two tabs now, and the first thing to give way when the bar
+   runs short of room */
+#credit{flex:1 1 200px;min-width:0;color:var(--muted);font-size:calc(11.5px * var(--ui));
   line-height:1.5;margin:0}
 
 #fb[hidden]{display:none}
@@ -716,14 +727,14 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   <button id="fbToggle" type="button" aria-expanded="false" aria-controls="fb">
     <span class="chev" aria-hidden="true">▸</span>Notes &amp; feedback<span id="fbBadge"></span>
   </button>
-  <button id="recToggle" type="button" aria-expanded="false" aria-controls="fb">
-    <span class="chev" aria-hidden="true">▸</span>Records<span id="recBadge"></span>
-  </button>
   <p id="credit"><b>Granular Lab 2D</b> &mdash; built on the work of <b>Chang Yang</b>, whose 3D
   Granular Mechanics Lab and Edwards-ensemble analysis it follows:
   <a href="https://physics-informed-ai.com/" target="_blank" rel="noopener">physics-informed-ai.com</a>
   &middot; Chang, Chang &amp; Chao, <i>Phys. Rev. E</i> <b>114</b>, 015410 (2026),
   <a href="https://doi.org/10.1103/1fvf-342f" target="_blank" rel="noopener">doi:10.1103/1fvf-342f</a>.</p>
+  <button id="recToggle" type="button" aria-expanded="false" aria-controls="fb">
+    <span class="chev" aria-hidden="true">▸</span>Records<span id="recBadge"></span>
+  </button>
 </footer>
 
 <section id="fb" hidden>
@@ -794,7 +805,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-09c';
+const BUILD = '2026-09-09d';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1852,12 +1863,18 @@ function frame(t){
     S._measureOnce = false;
   }
 
-  histT += dtFrame;
-  if(histT > 0.1 && S.P.length){
-    histT = 0;
-    const W = totalWeight();
-    S.hist.push({phi:S.meas.phi, side: W>0 ? (S.wall.L+S.wall.R)/W : 0});
-    if(S.hist.length > 460) S.hist.shift();
+  /* The trace is a history of the RUN, not of the wall clock. Sampling it while
+     paused appended the same frozen pair ten times a second and scrolled the
+     real history off the left of the chart — a paused page quietly destroying
+     the record it was meant to be holding still. */
+  if(S.running){
+    histT += dtFrame;
+    if(histT > 0.1 && S.P.length){
+      histT = 0;
+      const W = totalWeight();
+      S.hist.push({phi:S.meas.phi, side: W>0 ? (S.wall.L+S.wall.R)/W : 0});
+      if(S.hist.length > 460) S.hist.shift();
+    }
   }
 
   /* Painting is isolated so a rendering hiccup can never stop the readouts.
@@ -2139,12 +2156,22 @@ $('bFit').addEventListener('click', fitView);
    have no lasting readout of their own. #phase already carries the run state
    and must not be overwritten by them. */
 let toastT = 0;
-function toast(text, kind){
+let toastMark = null;
+/* `mark` is a control that should stay lit for as long as this note is up, and
+   go quiet with it. */
+function toast(text, kind, mark){
   const el = $('toast'); if(!el) return;
   el.textContent = text;
   el.className = 'on' + (kind ? ' ' + kind : '');
+  if(toastMark && toastMark !== mark) toastMark.classList.remove('flash');
+  if(mark) mark.classList.add('flash');
+  toastMark = mark || null;
   clearTimeout(toastT);
-  toastT = setTimeout(()=> el.className = '', 2600);
+  toastT = setTimeout(()=>{
+    el.className = '';
+    if(toastMark) toastMark.classList.remove('flash');
+    toastMark = null;
+  }, 2600);
 }
 
 /* glossary — every symbol on screen, explained in one place */
@@ -2804,12 +2831,12 @@ const REC = {
        Two acknowledgements, both where you are already looking: the button
        itself flashes, and a note appears in the corner of the view. */
     const btn = $('bRecord');
-    if(btn){ btn.classList.remove('flash'); void btn.offsetWidth; btn.classList.add('flash'); }
+    if(btn){ btn.classList.remove('flash'); void btn.offsetWidth; }  // restart the pulse
     toast('\u25cf Recorded \u2014 ' + this.dataCount() +
           (this.dataCount() === 1 ? ' row' : ' rows') +
           (this.rows[this.rows.length - 2] &&
            this.rows[this.rows.length - 2].k === 'set' ? ', with new inputs' : ''),
-          this.rows[this.rows.length - 1].settled ? 'ok' : 'warn');
+          this.rows[this.rows.length - 1].settled ? 'ok' : 'warn', btn);
   },
 
   save(){ try { localStorage.setItem('glab_records', JSON.stringify(this.rows)); } catch {} },
