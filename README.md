@@ -464,9 +464,24 @@ Two different fixes, because they are two different situations:
   something happen" cannot sit waiting for a Run the person pressing it does not
   know is needed.
 - **A wall says it is waiting.** Walls move by sweeping, which is physics, so a
-  wall cannot move on a frozen page. Moving one while paused now puts
-  *"paused — press ▶ Run to move the walls there"* in the status line instead of
-  looking broken.
+  wall cannot move on a frozen page. Moving one while paused now says
+  *"Paused — press ▶ Run to move the walls there"* instead of looking broken.
+
+### `#phase` is a readout, not a message log
+
+The first version of that hint went into `#phase` and was invisible.
+`paintReadouts` rebuilds `#phase` from `S` **every frame** — and while paused it
+hard-writes *"PAUSED — physics and readouts frozen"* — so anything left there
+survives exactly one frame. It looked right in a unit check of the DOM property
+and was gone before a person could read it, which is the same shape of mistake as
+the text-size selector that set a style nothing inherited from.
+
+Transient messages now go to the **toast** in the corner of the view, which
+nothing repaints: the wall hint, the workspace switch, resume-because-you-pressed-
+Fill, the export-with-nothing-to-export warning, and the record acknowledgement.
+`#phase` keeps its one job. The only thing still written there is Fill's instant
+*"Fill pressed…"*, which is meant to be replaced by *"depositing…"* on the very
+next frame.
 
 ## Records
 

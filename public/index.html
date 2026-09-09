@@ -794,7 +794,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-09b';
+const BUILD = '2026-09-09c';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1969,12 +1969,11 @@ function setWall(which, v){
   else if(which==='y1') t.y1 = Math.min(v, t.y2-g);
   else if(which==='y2') t.y2 = Math.max(v, t.y1+g);
   /* advanceWalls runs inside step(), so a paused page accepts the target and
-     never moves the wall. Silently. Say which it is rather than looking dead. */
-  if(!S.running && S.box[which] !== t[which]){
-    const ph = $('phase');
-    if(ph){ ph.textContent = 'paused — press ▶ Run to move the walls there';
-            ph.style.color = 'var(--warn)'; }
-  }
+     never moves the wall. Silently. Say which it is rather than looking dead —
+     in the toast, because paintReadouts owns #phase and rebuilds it from S on
+     every frame, which is where the first version of this message went to die. */
+  if(!S.running && S.box[which] !== t[which])
+    toast('Paused — press ▶ Run to move the walls there', 'warn');
   syncWallUI(); fillCapacityNote();
 }
 /* put the walls somewhere instantly — only safe with no particles in the way */
@@ -2263,8 +2262,7 @@ $('expSummary').addEventListener('click', ()=>{
 });
 $('expParticles').addEventListener('click', ()=>{
   if(!S.P.length){
-    const ph = $('phase');
-    if(ph){ ph.textContent = 'nothing to export — fill the box first'; ph.style.color = 'var(--warn)'; }
+    toast('Nothing to export — fill the box first', 'warn');
     return;
   }
   const head = ['# build', BUILD, 'at', new Date().toISOString(),
@@ -2342,8 +2340,7 @@ function applySnapshot(snap, note, opts){
   syncWallUI(); syncControls();
   if(clear){ clearAll(); fitView(); }
   fillCapacityNote(); updateHint();
-  const ph = $('phase');
-  if(ph && note){ ph.textContent = note; ph.style.color = 'var(--accent)'; }
+  if(note) toast(note, 'ok');
 }
 function resetAll(){ applySnapshot(DEFAULTS, 'reset to defaults', {clear:true}); saveTab(true); }
 $('bReset').addEventListener('click', resetAll);
@@ -2459,14 +2456,12 @@ function selectTab(i, initial){
   delete PACKS[i];
   const saved = readTab(i);
   applySnapshot(saved || DEFAULTS, null);
-  if(n) setPaused(true, 'workspace ' + TAB_NAME[i] + ' \u2014 its packing, paused');
+  if(n) setPaused(true, 'Workspace ' + TAB_NAME[i] + ' \u2014 its packing, paused');
   else {
     setPaused(false);
     fitView();
-    const ph = $('phase');
-    if(ph){ ph.textContent = 'workspace ' + TAB_NAME[i] +
-              (saved ? ' \u2014 settings restored, box empty' : ' \u2014 defaults');
-            ph.style.color = 'var(--accent)'; }
+    toast('Workspace ' + TAB_NAME[i] +
+          (saved ? ' — settings restored, box empty' : ' — defaults'), 'ok');
   }
   saveTab(true);                  // the tab now exists, at exactly these values
 }
@@ -2481,9 +2476,7 @@ document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveTab(
    "filling", a queue of 800, and not one particle. */
 function resumeFor(what){
   if(S.running) return;
-  setPaused(false);
-  const ph = $('phase');
-  if(ph){ ph.textContent = 'resumed — ' + what; ph.style.color = 'var(--accent)'; }
+  setPaused(false, 'Resumed — ' + what);
 }
 $('bFill').addEventListener('click', ()=>{
   /* Visible acknowledgement the instant the handler runs. Without it a click
@@ -2502,14 +2495,16 @@ $('bClear').addEventListener('click', clearAll);
 function setPaused(on, note){
   S.running = !on;
   $('bPause').textContent = S.running ? '❙❙ Pause' : '▶ Run';
-  const ph = $('phase');
-  if(ph && on){
-    ph.textContent = note || 'paused — readouts frozen';
-    ph.style.color = 'var(--warn)';
-  }
+  /* #phase is a readout of the run state, rebuilt from S every frame, so a
+     message left there survives exactly one frame. Anything transient belongs
+     in the toast, which nothing repaints. */
+  if(note) toast(note, on ? 'warn' : 'ok');
   S._measureOnce = true;      // settle on a final, sharper value before freezing
 }
-$('bPause').addEventListener('click', ()=> setPaused(S.running));
+/* The note matters here too: a stale "press Run" toast left standing after you
+   have pressed Run is worse than no toast at all. */
+$('bPause').addEventListener('click', ()=>
+  setPaused(S.running, S.running ? 'Paused — physics and readouts frozen' : 'Running'));
 $('bStep').addEventListener('click', ()=>{ for(let s=0;s<S.sub;s++) step(S.dt); S._measureOnce = true; });
 
 $('dColor').addEventListener('change', e=>{ S.colour = e.target.value; });
