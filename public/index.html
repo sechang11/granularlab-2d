@@ -228,6 +228,46 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   line-height:1.5;margin:0}
 
 #fb[hidden]{display:none}
+.fb-wrap[hidden]{display:none}
+
+/* ---- records ----------------------------------------------------------
+   A wide table of numbers in a page whose other columns are fixed: it gets
+   its own horizontal scroll rather than widening the page. */
+.rec-tools{display:flex;align-items:center;gap:8px;margin:14px 0 12px;flex-wrap:wrap}
+.rec-tools button{background:var(--surface2);color:var(--ink2);border:1px solid var(--baseline);
+  border-radius:6px;padding:5px 12px;font:inherit;font-size:calc(12px * var(--ui));cursor:pointer}
+.rec-tools button:hover{border-color:var(--accent);color:var(--ink)}
+.rec-tools .rec-danger:hover{border-color:var(--bad);color:var(--bad)}
+.rec-count{margin-left:auto;font-size:calc(11px * var(--ui));color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.rec-scroll{overflow-x:auto;border:1px solid var(--baseline);border-radius:7px;
+  max-height:52vh;overflow-y:auto}
+#recTable{width:100%;border-collapse:collapse;font-size:calc(12px * var(--ui));
+  font-variant-numeric:tabular-nums}
+#recTable th{position:sticky;top:0;z-index:1;background:var(--surface2);
+  font-size:calc(10.5px * var(--ui));font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);text-align:right;
+  padding:7px 12px;border-bottom:1px solid var(--baseline);white-space:nowrap}
+#recTable td{padding:5px 12px;text-align:right;color:var(--value);
+  border-bottom:1px solid var(--grid);white-space:nowrap}
+#recTable tr.unsettled td{color:var(--warn)}
+#recTable tr.unsettled td:first-child::before{content:'\26A0 ';}
+#recTable .rec-empty td{text-align:center;color:var(--muted);padding:16px}
+
+/* The inputs occupy one row of the table and lay themselves out inside that
+   single cell — as many columns as fit, so a fifteen-input configuration reads
+   as a block rather than as fifteen more table columns nothing else needs. */
+#recTable tr.recset td{background:var(--page);padding:9px 12px;text-align:left;
+  border-bottom:1px solid var(--baseline)}
+.recvars{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(140px * var(--ui)),1fr));
+  gap:3px 16px}
+.recvars span{display:flex;justify-content:space-between;gap:8px;
+  font-size:calc(11.5px * var(--ui));border-bottom:1px dotted var(--grid);padding:1px 0}
+.recvars i{font-style:normal;color:var(--muted)}
+.recvars b{color:var(--ink2);font-weight:600}
+.recvars b.changed{color:var(--accent2)}
+.recwhen{font-size:calc(10.5px * var(--ui));color:var(--muted);letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:6px}
 #fb{width:100%;border-top:1px solid var(--baseline);background:var(--surface);
   padding:22px 0 34px}
 .fb-wrap{max-width:1000px;margin:0 auto;padding:0 24px}
@@ -280,7 +320,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 <header>
   <h1>Granular Box — <span>2D Packing Lab</span></h1>
   <span class="tag tabs" role="group" aria-label="Workspace"
-        title="Three workspaces. Each keeps its own settings in this browser. Switching empties the box; Reset returns this one to the defaults.">
+        title="Three workspaces. Each keeps its own settings in this browser. Switching pauses the run and keeps the packing; Reset returns this one to the defaults.">
     <span class="tlbl">workspace</span><button class="tab on" id="tab1" type="button">A</button><button class="tab" id="tab2" type="button">B</button><button class="tab" id="tab3" type="button">C</button>
   </span>
   <span class="tag diag" id="tagDt">dt —</span>
@@ -340,6 +380,10 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         <button id="bStep" type="button">Step</button>
         <button id="bFit" type="button" title="Re-frame the view around the box">Fit view</button>
         <button id="bReset" type="button" title="All settings back to defaults">Reset</button>
+      </div>
+      <div class="btns">
+        <button id="bRecord" type="button"
+          title="Append the four wall positions and the four wall forces to the records table, and the inputs too if any have changed">● Record</button>
       </div>
     </div>
 
@@ -601,6 +645,9 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   <button id="fbToggle" type="button" aria-expanded="false" aria-controls="fb">
     <span class="chev" aria-hidden="true">▸</span>Notes &amp; feedback<span id="fbBadge"></span>
   </button>
+  <button id="recToggle" type="button" aria-expanded="false" aria-controls="fb">
+    <span class="chev" aria-hidden="true">▸</span>Records<span id="recBadge"></span>
+  </button>
   <p id="credit"><b>Granular Lab 2D</b> &mdash; built on the work of <b>Chang Yang</b>, whose 3D
   Granular Mechanics Lab and Edwards-ensemble analysis it follows:
   <a href="https://physics-informed-ai.com/" target="_blank" rel="noopener">physics-informed-ai.com</a>
@@ -609,7 +656,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 </footer>
 
 <section id="fb" hidden>
-  <div class="fb-wrap">
+  <div class="fb-wrap" id="paneNotes">
     <h2>Notes &amp; feedback</h2>
     <p class="fb-sub">Anonymous and timestamped. Nothing about who you are is recorded —
     no name, no account, no address kept. Your current settings and the build version
@@ -640,6 +687,35 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
     </div>
     <ul id="fbList"></ul>
   </div>
+
+  <div class="fb-wrap" id="paneRec" hidden>
+    <h2>Records</h2>
+    <p class="fb-sub">Press <b>● Record</b> in the panel to append a row: the four wall
+    positions and the four wall forces, as they are at that instant. The inputs are written
+    out again only when one of them has changed since the last record, so a run of
+    measurements under one configuration stays a run of eight numbers. Forces are read at
+    the moment you press — press it once the bed has settled; a row taken while the bed
+    was still moving is marked.</p>
+
+    <div class="rec-tools">
+      <button id="recCsv" type="button">Download CSV</button>
+      <button id="recTxt" type="button">Download TXT</button>
+      <button id="recClear" type="button" class="rec-danger">Clear records</button>
+      <span id="recCount" class="rec-count"></span>
+    </div>
+
+    <div class="rec-scroll">
+      <table id="recTable">
+        <thead><tr>
+          <th>x<sub>1</sub> cm</th><th>x<sub>2</sub> cm</th>
+          <th>y<sub>1</sub> cm</th><th>y<sub>2</sub> cm</th>
+          <th>F<sub>x1</sub> N</th><th>F<sub>x2</sub> N</th>
+          <th>F<sub>y1</sub> N</th><th>F<sub>y2</sub> N</th>
+        </tr></thead>
+        <tbody id="recBody"></tbody>
+      </table>
+    </div>
+  </div>
 </section>
 
 <script>
@@ -662,7 +738,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-08a';
+const BUILD = '2026-09-09a';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -2062,13 +2138,15 @@ function csvCell(v){
   const t = String(v);
   return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t;
 }
-function downloadCSV(name, rows){
-  const text = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
-  const url = URL.createObjectURL(new Blob([text], {type:'text/csv;charset=utf-8'}));
+function downloadBlob(name, text, mime){
+  const url = URL.createObjectURL(new Blob([text], {type:mime + ';charset=utf-8'}));
   const a = document.createElement('a');
   a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 2000);   // let the download start first
+}
+function downloadCSV(name, rows){
+  downloadBlob(name, rows.map(r => r.map(csvCell).join(',')).join('\r\n'), 'text/csv');
 }
 const stamp = () => new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
 const r6 = v => (typeof v === 'number' && isFinite(v)) ? +v.toFixed(6) : v;
@@ -2160,8 +2238,9 @@ function setControl(id, value, kind){
    of localStorage, written by an older build with controls this one has since
    renamed or dropped, and one stray undefined reaching S turns every subsequent
    force into NaN — a failure that shows up as an empty screen, far from here. */
-function applySnapshot(snap, note){
+function applySnapshot(snap, note, opts){
   if(!snap) return;
+  const clear = !!(opts && opts.clear);
   for(const [id,v] of Object.entries(snap.ctl || {})){
     if(!CTL[id] || !isFinite(v)) continue;
     CTL[id].set(+v); if(CTL[id].after) CTL[id].after();
@@ -2172,16 +2251,26 @@ function applySnapshot(snap, note){
     if(el && [...el.options].some(o => o.value === v)) setControl(id, v);
   }
   for(const [id,v] of Object.entries(snap.checks || {})) setControl(id, !!v, 'check');
-  /* set target AND actual so the change lands at once instead of sweeping there */
   const bx = snap.box || {};
-  if(['x1','x2','y1','y2'].every(k => isFinite(bx[k])) && bx.x2 > bx.x1 && bx.y2 > bx.y1)
-    for(const k of ['x1','x2','y1','y2']){ S.boxT[k] = +bx[k]; S.box[k] = +bx[k]; }
+  if(['x1','x2','y1','y2'].every(k => isFinite(bx[k])) && bx.x2 > bx.x1 && bx.y2 > bx.y1){
+    for(const k of ['x1','x2','y1','y2']) S.boxT[k] = +bx[k];
+    /* Landing the walls instantly is only safe with nothing in the way. Since a
+       workspace switch now keeps the packing, snapping to another tab's box
+       would put hundreds of disks outside their container in one frame, and on
+       the next step the escape backstop would drag every one of those centres
+       inward together. Set the target instead and let advanceWalls sweep there
+       at WALL_VMAX when the run resumes — the mechanism that exists for exactly
+       this. An empty box has nothing to crush, so it lands at once. */
+    if(clear || !S.P.length) for(const k of ['x1','x2','y1','y2']) S.box[k] = +bx[k];
+  }
   PL.valid = false; S.sel = null; S.drag = null;
-  syncWallUI(); syncControls(); clearAll(); fitView(); fillCapacityNote(); updateHint();
+  syncWallUI(); syncControls();
+  if(clear){ clearAll(); fitView(); }
+  fillCapacityNote(); updateHint();
   const ph = $('phase');
   if(ph && note){ ph.textContent = note; ph.style.color = 'var(--accent)'; }
 }
-function resetAll(){ applySnapshot(DEFAULTS, 'reset to defaults'); saveTab(true); }
+function resetAll(){ applySnapshot(DEFAULTS, 'reset to defaults', {clear:true}); saveTab(true); }
 $('bReset').addEventListener('click', resetAll);
 
 /* ------------------------------------------------------------ workspaces --
@@ -2189,9 +2278,13 @@ $('bReset').addEventListener('click', resetAll);
    packing and a dense one can be set up side by side and switched between
    without writing either configuration down, and both survive closing the page.
 
-   Settings only, not the packing: a bed poured into one box does not belong
-   inside another box's walls, so switching empties the box and you pour again.
-   Reset still works, and resets whichever tab you are on. */
+   What is stored is the settings, not the packing — there is one set of
+   particles, shared. Switching therefore pauses the run rather than emptying
+   the box: you keep the bed you poured, and nothing moves under a set of
+   numbers you have not looked at yet. Where the new tab's walls differ they
+   become the TARGET, and sweep there when you press Run, because landing them
+   on top of a packed bed would put hundreds of disks outside their container in
+   a single frame. Reset still clears, and resets whichever tab you are on. */
 const TABS = [1,2,3], TAB_NAME = {1:'A', 2:'B', 3:'C'};
 const tabKey = i => 'glab_tab_' + i;
 let activeTab = 1, lastSaved = '';
@@ -2221,9 +2314,13 @@ function selectTab(i, initial){
   activeTab = i;
   for(const t of TABS) $('tab'+t).className = 'tab' + (t === i ? ' on' : '');
   const saved = readTab(i);
+  const held = S.P.length;
   applySnapshot(saved || DEFAULTS,
     'workspace ' + TAB_NAME[i] +
-    (saved ? ' \u2014 settings restored, box emptied' : ' \u2014 defaults'));
+    (saved ? ' \u2014 settings restored' : ' \u2014 defaults'));
+  /* The packing stays where it is; the run pauses so nothing moves under a set
+     of numbers you have not looked at yet. Press Run when you are ready. */
+  if(held) setPaused(true, 'workspace ' + TAB_NAME[i] + ' \u2014 paused, packing kept');
   saveTab(true);                  // the tab now exists, at exactly these values
 }
 for(const t of TABS) $('tab'+t).addEventListener('click', ()=> selectTab(t));
@@ -2242,13 +2339,19 @@ $('bFill').addEventListener('click', ()=>{
 $('bTap').addEventListener('click', tap);
 $('bUnload').addEventListener('click', unload);
 $('bClear').addEventListener('click', clearAll);
-$('bPause').addEventListener('click', ()=>{
-  S.running = !S.running;
+/* Pausing is reached from two places now — the button and a workspace switch —
+   so it lives in one function rather than being written out at each. */
+function setPaused(on, note){
+  S.running = !on;
   $('bPause').textContent = S.running ? '❙❙ Pause' : '▶ Run';
   const ph = $('phase');
-  if(ph && !S.running){ ph.textContent = 'paused — readouts frozen'; ph.style.color = 'var(--warn)'; }
+  if(ph && on){
+    ph.textContent = note || 'paused — readouts frozen';
+    ph.style.color = 'var(--warn)';
+  }
   S._measureOnce = true;      // settle on a final, sharper value before freezing
-});
+}
+$('bPause').addEventListener('click', ()=> setPaused(S.running));
 $('bStep').addEventListener('click', ()=>{ for(let s=0;s<S.sub;s++) step(S.dt); S._measureOnce = true; });
 
 $('dColor').addEventListener('change', e=>{ S.colour = e.target.value; });
@@ -2462,23 +2565,9 @@ const FB = {
     } catch { this.msg('Could not check that token.', 'bad'); }
   },
 
-  /* open / closed, remembered — a client reading notes every day should not
-     have to reopen them every day */
-  open(on){
-    const sec = this.el('fb'), btn = this.el('fbToggle');
-    sec.hidden = !on;
-    btn.setAttribute('aria-expanded', on ? 'true' : 'false');
-    try { localStorage.setItem('glab_notes', on ? '1' : '0'); } catch {}
-    if(on) sec.scrollIntoView({block:'start', behavior:'smooth'});
-    sizeLab();
-  },
   init(){
-    this.el('fbToggle').addEventListener('click',
-      () => this.open(this.el('fb').hidden));
-    let openAtStart = false;
-    try { openAtStart = localStorage.getItem('glab_notes') === '1'; } catch {}
-    if(openAtStart){ this.el('fb').hidden = false;
-                     this.el('fbToggle').setAttribute('aria-expanded','true'); }
+    /* opening and closing belongs to BOTTOM now: there are two panes behind
+       one bar, and only one of them can be showing */
     this.el('fbForm').addEventListener('submit', e => this.send(e));
     this.el('fbBody').addEventListener('input', e =>
       this.el('fbCount').textContent = e.target.value.length);
@@ -2497,6 +2586,216 @@ const FB = {
     else this.load();
   }
 };
+
+/* ==========================================================================
+   RECORDS — a lab notebook rather than a snapshot.
+
+   Every press of Record appends the four wall positions and the four wall
+   forces. The inputs are written out again ONLY when one of them has changed
+   since the last record, so a sweep of one wall under one configuration reads
+   as a run of eight-number rows rather than fifteen repeated columns.
+
+   Walls are deliberately absent from the settings block: they are the first
+   four columns of every data row, so listing them again would be noise. So are
+   the display choices — colour scheme, rotation marks, the measurement region —
+   because a record should not be re-stamped for turning a marker on.
+   ========================================================================== */
+const REC_VARS = [
+  {key:'N',              label:'N',           get:()=>S.N,                  dp:0},
+  {key:'d_mm',           label:'d (mm)',      get:()=>S.d*1000,             dp:2},
+  {key:'dispersity_pct', label:'\u00b1x (%)', get:()=>S.x*100,              dp:0},
+  {key:'mu',             label:'\u03bc',      get:()=>S.mu,                 dp:2},
+  {key:'mu_wall',        label:'\u03bc_w',    get:()=>S.muW,                dp:2},
+  {key:'mu_roll',        label:'\u03bc_r',    get:()=>S.mur,                dp:3},
+  {key:'rho_kg_m3',      label:'\u03c1',      get:()=>S.rho,                dp:0},
+  {key:'kn_N_m',         label:'k_n',         get:()=>S.kn,                 dp:0},
+  {key:'kt_over_kn',     label:'k_t/k_n',     get:()=>S.ktRatio,            dp:2},
+  {key:'zeta',           label:'\u03b6',      get:()=>S.zeta,               dp:2},
+  {key:'damping_1_s',    label:'b (1/s)',     get:()=>S.bv,                 dp:1},
+  {key:'gravity_m_s2',   label:'g (m/s\u00b2)', get:()=>S.g,                dp:2},
+  {key:'target_phi_box', label:'target \u03c6', get:()=>S.fillTarget,       dp:2},
+  {key:'rate_1_s',       label:'rate (1/s)',  get:()=>S.rate,               dp:0},
+  {key:'method',         label:'method',      get:()=>$('fMethod').value,   dp:null},
+];
+const REC_COLS = ['x1_cm','x2_cm','y1_cm','y2_cm','Fx1_N','Fx2_N','Fy1_N','Fy2_N'];
+
+const REC = {
+  rows: [],            // {k:'set',at,vars:[[key,value],...]} | {k:'row',at,v:[8],settled}
+  MAX: 4000,           // localStorage is ~5 MB; this is far inside it
+
+  vars(){ return REC_VARS.map(v => [v.key, v.dp === null ? String(v.get())
+                                                         : (+v.get()).toFixed(v.dp)]); },
+  lastVars(){
+    for(let i = this.rows.length - 1; i >= 0; i--)
+      if(this.rows[i].k === 'set') return this.rows[i].vars;
+    return null;
+  },
+  dataCount(){ return this.rows.filter(r => r.k === 'row').length; },
+
+  add(){
+    const at = new Date().toISOString();
+    const vars = this.vars(), prev = this.lastVars();
+    if(!prev || JSON.stringify(prev) !== JSON.stringify(vars))
+      this.rows.push({k:'set', at, vars});
+    const b = S.box, w = S.wall;
+    this.rows.push({k:'row', at,
+      v:[b.x1*100, b.x2*100, b.y1*100, b.y2*100, w.L, w.R, w.B, w.T],
+      /* "settled" is the app's own quiet test, not a guess: a row taken while
+         the bed is still moving has forces that are not equilibrium forces, and
+         nothing downstream can tell that from the numbers alone. */
+      settled: S.phase === 'settled' || (S.P.length > 0 && isQuiet())});
+    if(this.rows.length > this.MAX) this.rows.splice(0, this.rows.length - this.MAX);
+    this.save(); this.render();
+    const ph = $('phase');
+    if(ph){
+      ph.textContent = 'recorded \u2014 ' + this.dataCount() +
+                       (this.dataCount() === 1 ? ' row' : ' rows');
+      ph.style.color = 'var(--ok)';
+    }
+  },
+
+  save(){ try { localStorage.setItem('glab_records', JSON.stringify(this.rows)); } catch {} },
+  load(){
+    try {
+      const raw = localStorage.getItem('glab_records');
+      const a = raw ? JSON.parse(raw) : null;
+      this.rows = Array.isArray(a) ? a.filter(r => r && (r.k === 'set' || r.k === 'row')) : [];
+    } catch { this.rows = []; }
+  },
+
+  render(){
+    const body = $('recBody'); if(!body) return;
+    const n = this.dataCount();
+    $('recBadge').textContent = n ? '(' + n + ')' : '';
+    $('recCount').textContent = n
+      ? n + (n === 1 ? ' row' : ' rows') + ' \u00b7 kept in this browser'
+      : '';
+    if(!this.rows.length){
+      body.innerHTML = '<tr class="rec-empty"><td colspan="8">No records yet \u2014 press ' +
+                       '<b>\u25cf Record</b> in the panel.</td></tr>';
+      sizeLab(); return;
+    }
+    const esc = t => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
+    const label = Object.fromEntries(REC_VARS.map(v => [v.key, v.label]));
+    let prev = null, html = '';
+    for(const r of this.rows){
+      if(r.k === 'set'){
+        const cells = r.vars.map(([k, val]) => {
+          const changed = prev && (Object.fromEntries(prev)[k] !== val);
+          return '<span><i>' + esc(label[k] || k) + '</i><b' +
+                 (changed ? ' class="changed" title="changed from ' +
+                            esc(Object.fromEntries(prev)[k]) + '"' : '') +
+                 '>' + esc(val) + '</b></span>';
+        }).join('');
+        html += '<tr class="recset"><td colspan="8"><div class="recwhen">inputs \u00b7 ' +
+                esc(FB.when(r.at)) + '</div><div class="recvars">' + cells + '</div></td></tr>';
+        prev = r.vars;
+      } else {
+        const cm = r.v.slice(0, 4).map(x => (+x).toFixed(2));
+        const fN = r.v.slice(4).map(x => (+x).toFixed(2));
+        html += '<tr' + (r.settled ? '' :
+                 ' class="unsettled" title="recorded while the bed was still moving — ' +
+                 'these are not equilibrium forces"') + '>' +
+                cm.concat(fN).map(x => '<td>' + x + '</td>').join('') + '</tr>';
+      }
+    }
+    body.innerHTML = html;
+    sizeLab();
+  },
+
+  /* ---- exports ---------------------------------------------------------
+     Two shapes, because they answer different questions. The CSV keeps the
+     table's own structure so a settings block sits above the rows it applies
+     to, with a leading "kind" column so a spreadsheet can still filter it. The
+     TXT is the same content aligned to read as a notebook. */
+  csv(){
+    const out = [];
+    out.push(['# Granular Lab 2D \u2014 records']);
+    out.push(['# build ' + BUILD + ' \u00b7 exported ' + new Date().toISOString()]);
+    /* No double quotes in these lines: csvCell would have to quote the whole
+       cell to escape them, and a header comment fenced in quotes reads badly in
+       every editor that opens this. */
+    out.push(['# A settings line lists every input as it stood at that moment, and the']);
+    out.push(['# record lines beneath it were all taken under those settings.']);
+    out.push(['# Wall positions are centimetres, forces newtons \u2014 per metre of depth,']);
+    out.push(['# since the disks are unit thickness. A trailing unsettled marks a row']);
+    out.push(['# taken while the bed was still moving.']);
+    out.push(['kind', 'at'].concat(REC_COLS));
+    for(const r of this.rows){
+      if(r.k === 'set')
+        out.push(['settings', r.at].concat(r.vars.map(([k, v]) => k + '=' + v)));
+      else
+        out.push(['record', r.at].concat(r.v.map(x => (+x).toFixed(2)))
+                 .concat(r.settled ? [] : ['unsettled']));
+    }
+    return out;
+  },
+  txt(){
+    const pad = (t, w) => String(t).padStart(w);
+    const L = [];
+    L.push('Granular Lab 2D \u2014 records');
+    L.push('build ' + BUILD + ' \u00b7 exported ' + new Date().toISOString());
+    L.push('wall positions in cm, forces in N (per metre of depth)');
+    L.push('');
+    const head = REC_COLS.map(c => pad(c, 12)).join('');
+    for(const r of this.rows){
+      if(r.k === 'set'){
+        L.push('');
+        L.push('-- inputs @ ' + r.at + ' ' + '-'.repeat(24));
+        const w = Math.max(...r.vars.map(([k]) => k.length));
+        for(const [k, v] of r.vars) L.push('   ' + k.padEnd(w) + '  ' + v);
+        L.push('');
+        L.push(head);
+      } else {
+        L.push(r.v.map(x => pad((+x).toFixed(2), 12)).join('') +
+               (r.settled ? '' : '   (unsettled)'));
+      }
+    }
+    L.push('');
+    L.push(this.dataCount() + ' recorded rows');
+    return L.join('\r\n');
+  }
+};
+
+/* The foot of the page holds two panes behind one bar. Clicking the pane that
+   is already open closes it, so the bar is a toggle and a switch at once. */
+const BOTTOM = {
+  show(name){
+    const next = (this.pane === name) ? null : name;
+    this.pane = next;
+    $('fb').hidden = !next;
+    $('paneNotes').hidden = next !== 'notes';
+    $('paneRec').hidden   = next !== 'records';
+    $('fbToggle').setAttribute('aria-expanded',  next === 'notes'   ? 'true' : 'false');
+    $('recToggle').setAttribute('aria-expanded', next === 'records' ? 'true' : 'false');
+    try { localStorage.setItem('glab_bottom', next || ''); } catch {}
+    if(next) $('fb').scrollIntoView({block:'start', behavior:'smooth'});
+    sizeLab();
+  },
+  pane: null,
+  init(){
+    $('fbToggle').addEventListener('click',  ()=> this.show('notes'));
+    $('recToggle').addEventListener('click', ()=> this.show('records'));
+    $('bRecord').addEventListener('click',   ()=> REC.add());
+    $('recCsv').addEventListener('click', ()=>
+      downloadCSV('granularlab-records-' + stamp() + '.csv',
+                  REC.csv().map(r => r.map(c => String(c)))));
+    $('recTxt').addEventListener('click', ()=>
+      downloadBlob('granularlab-records-' + stamp() + '.txt', REC.txt(), 'text/plain'));
+    $('recClear').addEventListener('click', ()=>{
+      if(!REC.rows.length) return;
+      if(!confirm('Delete all ' + REC.dataCount() + ' recorded rows? This cannot be undone — '
+                + 'download them first if you want to keep them.')) return;
+      REC.rows = []; REC.save(); REC.render();
+    });
+    REC.load(); REC.render();
+    let want = '';
+    try { want = localStorage.getItem('glab_bottom') || ''; } catch {}
+    if(want === 'notes' || want === 'records') this.show(want);
+  }
+};
+BOTTOM.init();
+
 FB.init();
 
 /* Build stamp + loop watchdog.

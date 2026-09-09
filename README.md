@@ -339,8 +339,20 @@ so a loose configuration and a dense one can be set up side by side and switched
 between without writing either down, and both survive closing the page. **Reset**
 still restores the shipped defaults, to whichever tab you are on.
 
-Settings only, not the packing. A bed poured into one box does not belong inside
-another box's walls, so switching tabs empties the box and you pour again.
+What is stored is the settings, not the packing — there is one set of particles,
+shared. **Switching a workspace pauses the run and keeps the bed**: you do not
+lose a fill you waited for, and nothing moves under a set of numbers you have not
+looked at yet. Reset still clears, and resets whichever tab you are on.
+
+Where the incoming tab's walls differ they become the **target**, not the
+position. Landing them instantly on a packed bed would put hundreds of disks
+outside their container in a single frame, and on the next step the escape
+backstop would drag every one of those centres inward together. Setting the
+target instead hands the job to `advanceWalls`, which sweeps at `WALL_VMAX`
+when you press Run — the mechanism that already existed for exactly this.
+Measured across a switch from a 70 cm box to an 82 cm one with 500 grains in it:
+peak particle speed **1.17 m/s** on resume. An empty box has nothing to crush,
+so it still lands at once.
 
 Three details worth keeping:
 
@@ -420,6 +432,38 @@ work — an ad-hoc one and the generic `CTL` binding. The `CTL` one also clamps 
 the box's min/max and marks the readouts for an immediate re-measure, so it is
 the one that survived.
 
+## Records
+
+A lab notebook rather than a snapshot. **● Record**, in the panel under the other
+actions, appends the four wall positions and the four wall forces as they are at
+that instant:
+
+| | x₁ cm | x₂ cm | y₁ cm | y₂ cm | F_x1 N | F_x2 N | F_y1 N | F_y2 N |
+|---|---|---|---|---|---|---|---|---|
+
+The inputs are written out again **only when one of them has changed** since the
+last record, so a sweep of one wall under one configuration reads as a run of
+eight-number rows rather than fifteen repeated columns. When they are written,
+they occupy a single row of the table and lay themselves out inside that one
+cell — as many columns as fit — and the value that changed is highlighted with
+its previous value on hover.
+
+Two things are deliberately **absent** from that settings block:
+
+- **The walls.** They are the first four columns of every data row already.
+- **The display choices** — colour scheme, rotation marks, the measurement
+  region. A record should not be re-stamped because you turned a marker on.
+
+A row taken while the bed was still moving is marked, in the table and in both
+exports. Those forces are not equilibrium forces and nothing downstream could
+tell that from the numbers alone.
+
+**Download CSV** keeps the table's own structure, with a leading `kind` column so
+a spreadsheet can still filter settings lines from data lines. **Download TXT**
+is the same content aligned to read as a notebook. Records are kept in this
+browser (capped at 4000 entries) and survive a reload; **Clear records** asks
+first, because there is no undo.
+
 ## Feedback
 
 The notes fold into a **bar at the foot of the page**: one line, closed by
@@ -434,7 +478,9 @@ past the fold. `#fb` itself is deliberately excluded from that sum: when the
 notes are open you have asked for them, and the page is expected to scroll;
 shrinking the view to fit a form would be the wrong trade.
 
-Open or closed is remembered, like the readout toggle and the text size.
+The bar holds **two panes** — Notes and Records. Clicking the one already open
+closes it, so the bar is a toggle and a switch at once, and which pane you left
+open is remembered along with the readout toggle and the text size.
 
 A full-width section, now behind that bar, collects **anonymous, timestamped**
 notes into SQLite. No name, no account, no IP is stored.
