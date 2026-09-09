@@ -386,9 +386,57 @@ wonder why nothing happened. Removing it also left `updateHint()` calling
 sequence — no `clearAll()`, no defaults captured, no tabs. It is back under its
 own `.note` class so that stripping prose can never again take a readout with it.
 
+## Legibility of the panel numbers
+
+The values you type and read in the control panel were `--accent` (`#3987e5`) on
+`--surface2` (`#222220`). Measured on the live element that is **4.38:1** — below
+the 4.5:1 minimum, at 11.5px, for the text in the app you look at most.
+
+They now use a separate `--value` token, `#9ec5ff`, which measures **9.02:1**
+against the same background and is still unmistakably the "this is a value you
+can edit" blue. `--accent` is left alone: the canvas accent, the active workspace
+tab and half the theme lean on it, and dragging it lighter to fix one control
+would have repainted everything.
+
+## Wall positions to 0.01 cm
+
+The four wall boxes read to two decimals, and their step is 0.01 cm.
+
+The catch was that `snapWall` put every wall value on a **1 mm grid** — which is
+0.1 cm, so a second decimal could only ever have been a zero. Grid and nudge were
+the same constant and are now two:
+
+- `WALL_GRID = 0.0001` m (0.1 mm) — what every path snaps to, whether the value
+  arrived by typing, dragging the slider, dragging the wall in the view, or an
+  arrow key. It has to be finer than the readout or the last digit is decoration.
+- `WALL_STEP = 0.001` m (1 mm) — one arrow-key press, 10 mm with Shift, as
+  documented in the glossary.
+
+Verified end to end: typing 55.37 cm lands on 55.37, 40.008 snaps to 40.01, and
+an arrow-key nudge still moves 0.1 cm.
+
+The wall sliders had also been carrying two `input` listeners doing the same
+work — an ad-hoc one and the generic `CTL` binding. The `CTL` one also clamps to
+the box's min/max and marks the readouts for an immediate re-measure, so it is
+the one that survived.
+
 ## Feedback
 
-A full-width section at the bottom of the page collects **anonymous, timestamped**
+The notes fold into a **bar at the foot of the page**: one line, closed by
+default, opened with a click and closed with another. It carries a count of the
+notes on the button, so you can see there is something to read without opening
+it, and the Chang Yang credit rides on the same line.
+
+Closed, the whole page fits one viewport with **no scrollbar** — which is the
+point. `sizeLab()` measures everything below `#main` and subtracts it, so the bar
+and the credit are paid for out of the height budget rather than pushing the page
+past the fold. `#fb` itself is deliberately excluded from that sum: when the
+notes are open you have asked for them, and the page is expected to scroll;
+shrinking the view to fit a form would be the wrong trade.
+
+Open or closed is remembered, like the readout toggle and the text size.
+
+A full-width section, now behind that bar, collects **anonymous, timestamped**
 notes into SQLite. No name, no account, no IP is stored.
 
 **The settings snapshot is mandatory, not optional.** It was a checkbox; it is
