@@ -491,6 +491,64 @@ Fill, the export-with-nothing-to-export warning, and the record acknowledgement.
 *"Fill pressed…"*, which is meant to be replaced by *"depositing…"* on the very
 next frame.
 
+## Fill never refuses, and the walls can be balanced
+
+**A box too small for N is no longer refused.** The box is the thing with a free
+parameter, so the box gives way: Fill enlarges it to the size that holds N at the
+target fill and says so in the corner. A box that already holds N is left exactly
+where you put it. The 12 m ceiling is a guard against nonsense, not a capacity
+limit — the largest N and largest grain the UI offers need 9.8 m.
+
+**⚖ Balance walls** servos all four walls, in symmetric pairs about the centre of
+the box, until the packing pushes back with the same force on every one. Only two
+of the four conditions are ours to set. Static equilibrium gives the other two
+free, and they are not negotiable:
+
+    F_x1 = F_x2              (Σ horizontal forces on the packing = 0)
+    F_y1 = F_y2 + W          (Σ vertical forces on the packing = 0)
+
+so the floor always carries the lid plus the weight — which is exactly the sense
+in which **F_y1 − W = F_y2** counts as equal. Drive the side pair and the lid to
+one F*, and the floor follows to F* + W by itself. F* is set as a multiple of the
+bed weight (default 1.00), so the same number stays meaningful when N, d or ρ
+change.
+
+Measured, 400 grains, F* = W: **X1 = 0.974 W, X2 = 0.970 W, Y2 = 1.012 W,
+Y1 − W = 1.012 W**, Σ force residual 0.24% / 0.03%, φ = 0.842, overlap 3.14%.
+
+### Three things the servo got wrong first
+
+1. **The grid ate every step.** Wall positions snap to `WALL_GRID`, 0.1 mm.
+   The servo's steps are much smaller — closing a 5 kN error takes about 0.03 mm —
+   so `snapWall` rounded every one to zero and the box never moved at all. The
+   residual the grid swallows is now carried to the next tick, so sub-grid steps
+   accumulate until they cross it.
+2. **The plant model was 250× too stiff.** It counted the contacts along a wall as
+   springs in parallel, `k_n·L/d`. Measured from the trace, 0.67 cm of closure
+   bought 1467 N — a real response of 2.2e5 N/m against the model's 5.5e7. A wall
+   is not pressing on a row of springs; it is straining a packing that rearranges,
+   and what answers is the bulk modulus of the bed: `0.3·k_n·H/L`, which lands
+   within 3× of measurement.
+3. **One rattler held the whole run hostage.** `isQuiet()` is a max-over-every-grain
+   test — right for "has deposition finished", far too strict here. On a converged
+   bed a single grain spinning in a pore ran at 1.4× that bar while the packing's
+   entire kinetic energy was 5.5e-6 J under a 6.5 kN load. Convergence now asks
+   whether the packing is *quasi-static relative to its load*: KE against F*·d.
+   During an active squeeze that ratio sits around 0.1 J against a 2e-3 J bar, so
+   the two states are nowhere near each other.
+
+A dead-band was needed as well — without one the servo kept making 0.1 mm
+corrections against force noise the bed itself generates, so the bed never went
+still and the run never finished.
+
+It stops itself if contact overlap passes 5% of a grain diameter, because past
+that the soft-disk law is not describing anything real.
+
+**Force, not pressure.** This equalises the force on each wall, and the box it
+finds is generally not square — 80.7 × 40.5 cm in the run above, so the sides sat
+at about 15.6 kPa and the lid at 8.2 kPa. An equal-force box is an equal-pressure
+box only when it comes out square.
+
 ## Records
 
 A lab notebook rather than a snapshot. **● Record**, in the panel under the other

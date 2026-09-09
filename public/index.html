@@ -427,6 +427,10 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         <button id="bReset" type="button" title="All settings back to defaults">Reset</button>
       </div>
       <div class="btns">
+        <button id="bBalance" type="button"
+          title="Move all four walls until the force on each is equal — the floor at that force plus the weight of the grains">⚖ Balance walls</button>
+      </div>
+      <div class="btns">
         <button id="bRecord" type="button"
           title="Append the four wall positions and the four wall forces to the records table, and the inputs too if any have changed">● Record</button>
       </div>
@@ -479,6 +483,8 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <div class="row"><span class="rowlab">selected wall</span><span></span><span class="val" id="bSel">none</span></div>
       <div class="row"><label for="fTarget">target fill φ<sub>box</sub></label>
         <input type="range" id="fTarget" min="0.40" max="0.86" step="0.01" value="0.84"><input class="val num" type="number" id="fTargetv" min="0.40" max="0.86" step="0.01"></div>
+      <div class="row"><label for="bal">balance target F / W</label>
+        <input type="range" id="bal" min="0.1" max="5" step="0.05" value="1.00"><input class="val num" type="number" id="balv" min="0.1" max="5" step="0.05"></div>
       <div class="row wide">
         <button id="bAuto" type="button">Size box so the balls fill it</button></div>
       <div class="row wide" style="margin-top:8px">
@@ -587,7 +593,11 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         drag the wall itself in the view. Select a wall by clicking it, then nudge with
         the arrow keys (1 mm, or 10 mm with Shift).</dd>
       <dt>target fill</dt><dd>What fraction of the box the grains should occupy when
-        <b>Size box</b> computes a box for them.</dd>
+        <b>Size box</b> computes a box for them, and when <b>Fill</b> enlarges a box too
+        small to hold N.</dd>
+      <dt>a box too small for N</dt><dd>Is no longer refused. The box has the free parameter,
+        so the box gives way: Fill enlarges it to the size that holds N at the target fill,
+        and says so. A box that already holds N is left exactly where you put it.</dd>
       <dt>Pluviation</dt><dd>Rains grains in from above with friction already active, so
         contacts lock on first touch and the bed arrests before it can rearrange &mdash; the
         loosest route. Measured &phi; &asymp; 0.828, and raising &mu; opens it further
@@ -606,6 +616,37 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         lattice and it becomes the <i>loosest</i> of the four.</dd>
       <dt>deposition rate</dt><dd>How fast grains are released, per second of simulated
         time. Slower gives a looser bed.</dd>
+    </dl>
+
+    <h3 id="g-balance">Balancing the walls</h3>
+    <dl>
+      <dt>&#9878; Balance walls</dt><dd>Moves all four walls, in symmetric pairs about the
+        centre of the box, until the packing pushes back with the same force on each of
+        them. It is a servo, the way a DEM cell is run: the further a wall's force is from
+        the target, the faster it moves, and it creeps once it is in contact so the bed is
+        compressed rather than struck.</dd>
+      <dt>balance target F / W</dt><dd>What that force should be, as a multiple of the total
+        weight of the grains. 1.00 means each wall ends up carrying about what the bed
+        weighs. Expressing it against W rather than in newtons keeps the same number
+        meaningful when you change N, d or &rho;.</dd>
+      <dt>why the floor is different</dt><dd>It is not, really — it has no choice. Static
+        equilibrium of the packing gives F<sub>y1</sub> = F<sub>y2</sub> + W in the vertical
+        and F<sub>x1</sub> = F<sub>x2</sub> in the horizontal, whatever the walls do. So the
+        floor always carries the lid plus the weight, and <b>F<sub>y1</sub> &minus; W =
+        F<sub>y2</sub></b> is the sense in which it is equal to the others. Only two numbers
+        are actually free to be controlled: the side pair and the lid.</dd>
+      <dt>when it stops</dt><dd>When the side force and the lid force are both within 2% of
+        W of the target and the bed is quiet. It also stops itself if contact overlap passes
+        5% of a grain diameter, because past that the soft-disk contact law is no longer
+        describing anything real — raise k<sub>n</sub> or lower the target.</dd>
+      <dt>reading the result</dt><dd>In the wall table the <b>/ W</b> column is the check:
+        X1, X2 and Y2 all land on the target, and Y1 on the target plus one.</dd>
+      <dt>force, not pressure</dt><dd>Worth being clear about: this equalises the <b>force</b>
+        on each wall, which is what was asked for, and the box it finds is generally not
+        square. A wall half as long carrying the same force carries twice the pressure — so
+        an equal-force box is an equal-<i>pressure</i> box only when it comes out square.
+        Measured on 400 grains at F* = W: 80.7 &times; 40.5 cm, so the sides sat at about
+        15.6 kPa and the lid at 8.2 kPa.</dd>
     </dl>
 
     <h3 id="g-readouts">Top-left readouts</h3>
@@ -805,7 +846,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-09d';
+const BUILD = '2026-09-09e';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -826,6 +867,7 @@ const S = {
      overlap. The startup check below catches any future drift. */
   kn: 2.0e6, ktRatio: 0.80, zeta: 0.25, bv: 2.0, g: 9.81,
   method: 'rain', rate: 300, fillTarget: 0.84,
+  balTarget: 1.00,            // wall force to servo to, in multiples of W
 
   P: [],                      // particles
   dt: 1e-3, sub: 8,
@@ -1234,7 +1276,9 @@ function fillCapacityNote(){
   const bedPhi = S.N*grainArea()/Math.max(1e-9, BW()*BH());
   let t = 'This box holds about <b>'+cap+'</b> balls at φ = 0.87. '+
           'N = '+S.N+' would fill it to <b>'+(100*bedPhi).toFixed(0)+'%</b> of its area.';
-  if(S.N > cap) t += ' <b style="color:var(--bad)">Over capacity — filling will be refused.</b>';
+  if(S.N > cap) t += ' <b style="color:var(--warn)">Too small for N — Fill will enlarge the box' +
+    ' to about ' + (100*clamp(+sizeForN(needsHeadroom(m) ? Math.min(S.fillTarget,0.62) : S.fillTarget)
+                              .toFixed(2), 0.2, 12)).toFixed(0) + ' cm square.</b>';
   else if(needsHeadroom(m) && bedPhi > 0.70)
     t += ' <b style="color:var(--warn)">Pluviation needs free space above the bed;'+
          ' at this fill it will jam. Use Grow in place or Lattice release.</b>';
@@ -1246,13 +1290,16 @@ function fillCapacityNote(){
 }
 
 function startFill(){
-  const cap = capacityN();
-  if(S.N > cap){
-    S.phase = 'refused';
-    fillCapacityNote();
-    return;                                  // refuse rather than make nonsense
-  }
   clearAll();
+  /* There is no refusal any more. A box too small for N used to answer Fill with
+     REFUSED and nothing else, which is a wall of text where a result should be;
+     the box is the thing with a free parameter, so the box gives way. Only when
+     it has to — a box that already holds N is left exactly where you put it. */
+  if(S.N > capacityN()){
+    const side = autoSizeBox();
+    toast('Box enlarged to ' + (100*side).toFixed(0) + ' × ' +
+          (100*side).toFixed(0) + ' cm to hold ' + S.N + ' grains', 'ok');
+  }
   S.method = $('fMethod').value;
   S.phase = 'filling';
 
@@ -1385,6 +1432,115 @@ function growTick(dtFrame){
     S.jammedAt = null;                    // reached full size with room to spare
     S.gActive = S.g;
     S.phase = 'settling';                 // settleTick restores μ once it is calm
+  }
+}
+
+/* ---------------------------------------------------------- wall balance --
+   Servo-controlled boundaries, the way a DEM cell is run: each wall moves at a
+   rate set by how far its force is from the target, so the box finds the size at
+   which the packing pushes back equally on every side.
+
+   Only TWO of the four conditions are ours to control. Static equilibrium gives
+   the other two for nothing, and they are not negotiable:
+
+       F_x1 = F_x2                (Σ horizontal forces on the packing = 0)
+       F_y1 = F_y2 + W            (Σ vertical forces on the packing = 0)
+
+   so the floor always carries the lid plus the weight of the grains — which is
+   exactly what "y1 minus the weight equals y2" means, and why it counts as equal.
+   What is left is the magnitude: drive the side pair and the lid to one F*, and
+   the floor follows to F* + W on its own.
+
+   Walls move in symmetric pairs about the box centre, so the packing is squeezed
+   rather than shoved across the box, and all four move as the request asked. */
+const BAL_GAIN = 0.50;         // under-relaxation; 1.0 would be a dead-beat step
+const BAL_TOL  = 0.03;         // converged within 3% of the bed weight
+const BAL_HOLD = 3;            // consecutive frames inside the band before it is done
+let balOk = 0;
+
+/* isQuiet() is a max-over-every-grain test — exactly right for "has deposition
+   finished", far too strict here. Measured on a converged bed: one rattler
+   spinning in a pore ran at 1.4× that bar while the packing's entire kinetic
+   energy was 5.5e-6 J under a 6.5 kN load, and the servo would have waited on it
+   forever. What a servo needs to know is whether the PACKING is quasi-static, so
+   compare its kinetic energy against the work scale of the load it carries:
+   moving one grain diameter against F*. During an active squeeze that ratio sits
+   around 0.1 J against a 2e-3 J bar, so the two states are not close. */
+const balQuiet = Ftar => kineticEnergy() < 1e-5 * Math.max(Ftar, 1) * S.d;
+
+/* Every wall position lands on WALL_GRID, 0.1 mm, because that is the finest
+   thing the readout can express. The servo's steps are far smaller than that:
+   the contacts along a wall are stiff enough that closing a 5 kN error takes
+   about 0.03 mm, so snapWall rounded every single step to zero and the box never
+   moved at all. The residual the grid swallows is carried to the next tick, so
+   sub-grid steps accumulate until they cross it. */
+const balRem = {x1:0, x2:0, y1:0, y2:0};
+function balReset(){ balRem.x1 = balRem.x2 = balRem.y1 = balRem.y2 = 0; }
+function balNudge(dx, dy){
+  const t = S.boxT, g = BMIN();
+  const want = {x1:t.x1 + dx/2 + balRem.x1, x2:t.x2 - dx/2 + balRem.x2,
+                y1:t.y1 + dy/2 + balRem.y1, y2:t.y2 - dy/2 + balRem.y2};
+  /* the same guard setWall applies: opposite walls may never cross or touch */
+  want.x1 = Math.min(want.x1, want.x2 - g);
+  want.y1 = Math.min(want.y1, want.y2 - g);
+  for(const k of ['x1','x2','y1','y2']){
+    t[k] = snapWall(want[k]);
+    /* if a clamp moved the wall somewhere else entirely, do not hoard the
+       difference — only the grid's rounding belongs in the residual */
+    balRem[k] = clamp(want[k] - t[k], -WALL_GRID, WALL_GRID);
+  }
+  syncWallUI();                  // once, not once per wall
+}
+
+function balanceTick(){
+  const W = totalWeight();
+  if(!S.P.length || W <= 0){ S.phase = 'idle'; return; }
+  const Ftar = S.balTarget * W;
+  const side = 0.5*(S.wall.L + S.wall.R);      // equal by equilibrium; average out the noise
+  const lid  = S.wall.T;
+  const ex = Ftar - side, ey = Ftar - lid;
+
+  /* dF/dx for a wall. The first version of this counted the contacts along the
+     wall as springs in parallel — k_n·L/d — and was wrong by a factor of 250,
+     measured: 0.67 cm of closure bought 1467 N, so the real response is 2.2e5
+     N/m where that model predicted 5.5e7. A wall is not pressing on a row of
+     springs; it is straining a packing that rearranges, and what answers is the
+     bulk modulus of the bed. For a 2D packing that is a fraction of k_n — the
+     0.3 below — and the geometry enters as the aspect ratio, not as the grain
+     size:  ΔF = (E·H)·(Δx/L). That lands within 3× of measurement, which is what
+     a proportional controller with a capped step needs. */
+  const kx = 0.3 * S.kn * BH()/Math.max(1e-9, BW());
+  const ky = 0.3 * S.kn * BW()/Math.max(1e-9, BH());
+  /* Out of contact there is nothing to be gentle with, so close the gap quickly;
+     in contact, creep, or the bed is struck rather than compressed. */
+  const capX = (Math.abs(side) < 0.02*Ftar ? 0.15 : 0.01) * S.d;
+  const capY = (Math.abs(lid)  < 0.02*Ftar ? 0.15 : 0.01) * S.d;
+  /* Dead-band. Without it the servo keeps making tenth-of-a-millimetre
+     corrections against force noise the bed itself generates, so the bed never
+     goes still and the run never finishes. Inside the band the wall simply
+     holds, which is what lets the packing damp out and the forces settle. */
+  const tol = BAL_TOL*W;
+  const inX = Math.abs(ex) < tol, inY = Math.abs(ey) < tol;
+  const dx = inX ? 0 : clamp(BAL_GAIN*ex/kx, -capX, capX);
+  const dy = inY ? 0 : clamp(BAL_GAIN*ey/ky, -capY, capY);
+  if(dx || dy) balNudge(dx, dy);
+
+  /* Compressing a packing buys force with overlap. Past a few percent of a grain
+     diameter the soft-disk contact law stops describing anything real, so stop
+     and say so rather than reporting a number that looks converged. */
+  if(S.overlapPct > 5){
+    S.phase = 'settling';
+    toast('Stopped balancing — contact overlap passed 5% of a grain. ' +
+          'Raise kₙ or lower the target.', 'warn');
+    return;
+  }
+  balOk = (inX && inY && balQuiet(Ftar)) ? balOk + 1 : 0;
+  if(balOk >= BAL_HOLD){
+    S.phase = 'balanced';
+    S._measureOnce = true;
+    resetWallAvg();
+    toast('Balanced — every wall at ' + fmtN(Ftar) + ', floor at ' +
+          fmtN(Ftar + W) + ' (= F* + W)', 'ok');
   }
 }
 
@@ -1799,13 +1955,15 @@ function paintReadouts(){
     idle:'idle', filling:'depositing…', growing:'inflating particles…',
     settling:'settling…', settled:'settled', unloading:'unloading (g = 0)…',
     jammed:'JAMMED — bed reached the lid, '+S.toPlace+' balls never placed',
-    refused:'REFUSED — N exceeds what this box can hold'
+    balancing:'balancing walls…',
+    balanced:'BALANCED — equal force on every wall'
   })[S.phase] || S.phase;
   /* Say it plainly while paused: the readouts are deliberately frozen, so a
      still phi is the expected behaviour rather than a stuck simulation. */
   if(!S.running) $('phase').textContent = 'PAUSED — physics and readouts frozen';
-  $('phase').style.color = (S.phase==='jammed'||S.phase==='refused') ? 'var(--bad)'
-    : (!S.running ? 'var(--warn)' : 'var(--accent)');
+  $('phase').style.color = S.phase==='jammed' ? 'var(--bad)'
+    : (!S.running ? 'var(--warn)'
+    : (S.phase==='balanced' ? 'var(--ok)' : 'var(--accent)'));
 }
 function maxOverlapPct(){
   /* the pair list already holds every candidate; no grid rebuild needed */
@@ -1836,6 +1994,7 @@ function frame(t){
     if(S.phase==='growing') growTick(dtFrame);
     for(let s=0;s<S.sub;s++) step(S.dt);
     if(S.phase==='settling') settleTick();
+    if(S.phase==='balancing') balanceTick();
     if(S.phase==='unloading' && isQuiet()){ S.phase = 'settled'; }
   }
 
@@ -1923,6 +2082,7 @@ const CTL = {
   cG:      {get:()=>S.g,           set:v=>S.g=v,          dp:2,
             after:()=>{ if(S.phase!=='unloading') S.gActive=S.g; }},
   fTarget: {get:()=>S.fillTarget,  set:v=>S.fillTarget=v, dp:2, after:fillCapacityNote},
+  bal:     {get:()=>S.balTarget,   set:v=>S.balTarget=v,  dp:2},
   fRate:   {get:()=>S.rate,        set:v=>S.rate=v,       dp:0},
   wX1:     {get:()=>S.boxT.x1*100, set:v=>setWall('x1',v/100), dp:2, wall:true},
   wX2:     {get:()=>S.boxT.x2*100, set:v=>setWall('x2',v/100), dp:2, wall:true},
@@ -2132,23 +2292,29 @@ window.addEventListener('touchmove', ev=>{
 }, {passive:false});
 window.addEventListener('touchend', endDrag);
 
-$('bAuto').addEventListener('click', ()=>{
-  /* Solve L from the target fill: the settled bed reaches the lid when
-     N·a_grain = φ·L², so L = √(N·a_grain/φ).
+/* Solve L from the target fill: the settled bed reaches the lid when
+   N·a_grain = φ·L², so L = √(N·a_grain/φ).
 
-     Method-aware, because the two requirements genuinely conflict. Pluviation
-     rains grains from above and needs somewhere to rain FROM; a box sized so the
-     bed exactly reaches the lid leaves no such space, and deposition jams a few
-     grains short every time. Grow and lattice place particles throughout the box
-     and do not care, so they get the full-box target. */
+   Method-aware, because the two requirements genuinely conflict. Pluviation
+   rains grains from above and needs somewhere to rain FROM; a box sized so the
+   bed exactly reaches the lid leaves no such space, and deposition jams a few
+   grains short every time. Grow and lattice place particles throughout the box
+   and do not care, so they get the full-box target.
+
+   The 12 m ceiling is a guard against a nonsense box, not a capacity limit: the
+   largest N and the largest grain this UI offers need 9.8 m, so it never binds
+   on anything you can actually ask for. */
+function autoSizeBox(){
   const target = needsHeadroom($('fMethod').value)
     ? Math.min(S.fillTarget, 0.62) : S.fillTarget;
-  const side = clamp(+sizeForN(target).toFixed(2), 0.2, 4);
+  const side = clamp(+sizeForN(target).toFixed(2), 0.2, 12);
   setWallNow('x2', S.boxT.x1 + side);  // grow from the lower-left corner
   setWallNow('y2', S.boxT.y1 + side);
   syncWallUI();
   fillCapacityNote();
-});
+  return side;
+}
+$('bAuto').addEventListener('click', autoSizeBox);
 
 $('bFit').addEventListener('click', fitView);
 
@@ -2515,6 +2681,22 @@ $('bFill').addEventListener('click', ()=>{
   startFill();
 });
 $('bTap').addEventListener('click', ()=>{ resumeFor('tapping'); tap(); });
+$('bBalance').addEventListener('click', ()=>{
+  if(!S.P.length){ toast('Nothing to balance — fill the box first', 'warn'); return; }
+  resumeFor('balancing the walls');
+  S.gActive = S.g;                 // an unloaded bed has no weight to balance against
+  S.muActive = S.mu;
+  /* Bring the lid down to the surface first. Forty centimetres of empty headroom
+     is not something to creep across at a servo's pace, and no one lowers a
+     platen onto a sample from a height either — you bring it to the surface and
+     then load. Nothing is above the highest grain, so this one may teleport. */
+  let top = S.box.y1;
+  for(const p of S.P) if(p.y + p.r > top) top = p.y + p.r;
+  if(S.boxT.y2 > top + S.d) setWallNow('y2', top + 0.5*S.d);
+  S.phase = 'balancing';
+  balReset(); balOk = 0;
+  resetWallAvg();
+});
 $('bUnload').addEventListener('click', ()=>{ resumeFor('unloading'); unload(); });
 $('bClear').addEventListener('click', clearAll);
 /* Pausing is reached from two places now — the button and a workspace switch —
@@ -2795,6 +2977,7 @@ const REC_VARS = [
   {key:'gravity_m_s2',   label:'g (m/s\u00b2)', get:()=>S.g,                dp:2},
   {key:'target_phi_box', label:'target \u03c6', get:()=>S.fillTarget,       dp:2},
   {key:'rate_1_s',       label:'rate (1/s)',  get:()=>S.rate,               dp:0},
+  {key:'balance_F_over_W', label:'balance F/W', get:()=>S.balTarget,        dp:2},
   {key:'method',         label:'method',      get:()=>$('fMethod').value,   dp:null},
 ];
 const REC_COLS = ['x1_cm','x2_cm','y1_cm','y2_cm','Fx1_N','Fx2_N','Fy1_N','Fy2_N'];
