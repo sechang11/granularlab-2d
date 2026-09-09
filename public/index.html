@@ -118,6 +118,24 @@ header .tab.on{color:var(--accent);background:var(--surface2)}
 #stalled h3{color:var(--bad);font-size:calc(15px * var(--ui));margin-bottom:8px}
 #stalled p{color:var(--ink2);font-size:calc(12.5px * var(--ui));line-height:1.6;margin-bottom:8px}
 #stalled code{font-family:ui-monospace,Consolas,monospace;font-size:calc(11.5px * var(--ui));color:var(--accent)}
+/* bottom-RIGHT: the readouts own the top-left and #phase the bottom-left */
+#toast{position:absolute;bottom:12px;right:12px;z-index:4;pointer-events:none;
+  font-size:calc(12px * var(--ui));color:var(--ok);
+  background:rgba(10,10,10,.86);border:1px solid var(--ok);border-radius:6px;
+  padding:6px 12px;opacity:0;transform:translateY(6px);
+  transition:opacity .18s ease, transform .18s ease}
+#toast.on{opacity:1;transform:none}
+#toast.warn{color:var(--warn);border-color:var(--warn)}
+@keyframes recflash{
+  0%   {background:var(--ok); color:#0d0d0d; border-color:var(--ok)}
+  100% {background:transparent}
+}
+#bRecord.flash{animation:recflash .55s ease-out}
+@media (prefers-reduced-motion: reduce){
+  #toast{transition:none}
+  #bRecord.flash{animation:none;border-color:var(--ok);color:var(--ok)}
+}
+
 #phase{position:absolute;bottom:12px;left:12px;font-size:calc(12px * var(--ui));color:var(--accent);
   background:rgba(10,10,10,.72);border:1px solid var(--border);border-radius:6px;padding:5px 10px}
 
@@ -240,34 +258,49 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 .rec-tools .rec-danger:hover{border-color:var(--bad);color:var(--bad)}
 .rec-count{margin-left:auto;font-size:calc(11px * var(--ui));color:var(--muted);
   font-variant-numeric:tabular-nums}
-.rec-scroll{overflow-x:auto;border:1px solid var(--baseline);border-radius:7px;
-  max-height:52vh;overflow-y:auto}
-#recTable{width:100%;border-collapse:collapse;font-size:calc(12px * var(--ui));
+#recBlocks{max-height:52vh;overflow-y:auto;padding-right:2px}
+.rec-scroll{overflow-x:auto;border:1px solid var(--baseline);border-radius:0 0 7px 7px}
+.rectab{width:100%;border-collapse:collapse;font-size:calc(12px * var(--ui));
   font-variant-numeric:tabular-nums}
-#recTable th{position:sticky;top:0;z-index:1;background:var(--surface2);
+.rectab th{background:var(--surface2);
   font-size:calc(10.5px * var(--ui));font-weight:700;letter-spacing:.08em;
   text-transform:uppercase;color:var(--muted);text-align:right;
   padding:7px 12px;border-bottom:1px solid var(--baseline);white-space:nowrap}
-#recTable td{padding:5px 12px;text-align:right;color:var(--value);
+.rectab td{padding:5px 12px;text-align:right;color:var(--value);
   border-bottom:1px solid var(--grid);white-space:nowrap}
-#recTable tr.unsettled td{color:var(--warn)}
-#recTable tr.unsettled td:first-child::before{content:'\26A0 ';}
-#recTable .rec-empty td{text-align:center;color:var(--muted);padding:16px}
+/* Zebra by PAIRS of columns, not by rows. The eight readings are four pairs —
+   the two x walls, the two y walls, then their two force pairs — and tinting
+   alternate pairs is what stops the eye sliding between x2 and y1 halfway
+   across. The heavier rule before column 5 separates positions from forces. */
+.rectab th:nth-child(3),.rectab th:nth-child(4),
+.rectab td:nth-child(3),.rectab td:nth-child(4),
+.rectab th:nth-child(7),.rectab th:nth-child(8),
+.rectab td:nth-child(7),.rectab td:nth-child(8){background:rgba(255,255,255,.035)}
+.rectab th:nth-child(5),.rectab td:nth-child(5){border-left:1px solid var(--baseline)}
+.rectab tbody tr:hover td{background:rgba(57,135,229,.14)}
+.rectab tr.unsettled td{color:var(--warn)}
+.rectab tr.unsettled td:first-child::before{content:'\26A0 ';}
+.rec-empty{color:var(--muted);font-size:calc(12.5px * var(--ui));
+  border:1px dashed var(--baseline);border-radius:7px;padding:18px;text-align:center}
 
-/* The inputs occupy one row of the table and lay themselves out inside that
-   single cell — as many columns as fit, so a fifteen-input configuration reads
-   as a block rather than as fifteen more table columns nothing else needs. */
-#recTable tr.recset td{background:var(--page);padding:9px 12px;text-align:left;
-  border-bottom:1px solid var(--baseline)}
-.recvars{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(140px * var(--ui)),1fr));
-  gap:3px 16px}
+/* The inputs sit ABOVE their table rather than inside it. Eight numeric columns
+   interrupted every few rows by a fifteen-item block are hard to scan down; a
+   change of inputs starts a new table instead, so every table is a run taken
+   under one configuration and the eight columns stay eight columns. */
+.recblk{margin-bottom:18px}
+.recvars{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(150px * var(--ui)),1fr));
+  gap:2px 18px;background:var(--page);border:1px solid var(--baseline);
+  border-radius:7px 7px 0 0;border-bottom:0;padding:9px 12px}
 .recvars span{display:flex;justify-content:space-between;gap:8px;
   font-size:calc(11.5px * var(--ui));border-bottom:1px dotted var(--grid);padding:1px 0}
 .recvars i{font-style:normal;color:var(--muted)}
 .recvars b{color:var(--ink2);font-weight:600}
 .recvars b.changed{color:var(--accent2)}
-.recwhen{font-size:calc(10.5px * var(--ui));color:var(--muted);letter-spacing:.08em;
-  text-transform:uppercase;margin-bottom:6px}
+.recwhen{display:flex;justify-content:space-between;gap:12px;
+  font-size:calc(10.5px * var(--ui));color:var(--muted);letter-spacing:.08em;
+  text-transform:uppercase;background:var(--page);border:1px solid var(--baseline);
+  border-bottom:0;border-radius:7px 7px 0 0;padding:7px 12px 0}
+.recwhen + .recvars{border-radius:0;border-top:0}
 #fb{width:100%;border-top:1px solid var(--baseline);background:var(--surface);
   padding:22px 0 34px}
 .fb-wrap{max-width:1000px;margin:0 auto;padding:0 24px}
@@ -356,6 +389,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       </table>
       <div id="badge">✓ NO LOCKED-IN STRESS</div>
     </div>
+    <div id="toast" aria-live="polite"></div>
     <div id="phase">idle</div>
     <div id="stalled"><div>
       <h3>The animation loop never started</h3>
@@ -628,13 +662,50 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         last one.</dd>
     </dl>
 
+    <h3 id="g-records">Records</h3>
+    <dl>
+      <dt>&#9679; Record</dt><dd>Appends one line to the records table at the foot of the
+        page: the four wall positions and the four wall forces, exactly as they stand the
+        instant you press it. The button flashes and a note appears in the corner of the
+        view, so you do not have to open the table to know it worked.</dd>
+      <dt>the inputs block</dt><dd>Above each table. It is written out again <b>only when
+        one of the inputs has changed</b> since the last record, and a change starts a new
+        table underneath it &mdash; so every table is a run taken under one configuration,
+        and the eight columns are never interrupted. The value that changed is highlighted;
+        hover it to see what it was.</dd>
+      <dt>x&#8321; x&#8322; y&#8321; y&#8322;</dt><dd>Where the four walls actually are, in
+        cm &mdash; not where a slider has asked them to go. Mid-sweep those differ.</dd>
+      <dt>F<sub>x1</sub> &hellip; F<sub>y2</sub></dt><dd>The normal force on each of those
+        walls, in newtons, time-averaged the same way the readouts are. Left, right, floor,
+        lid.</dd>
+      <dt>&#9888; a marked row</dt><dd>Recorded while the bed was still moving. Those are not
+        equilibrium forces, and nothing downstream could tell from the numbers alone. Wait
+        for the bed to settle, or press <b>Tap</b> and wait, before recording.</dd>
+      <dt>walls and display</dt><dd>Deliberately absent from the inputs block. The walls are
+        the first four columns of every row already; the display choices &mdash; colour
+        scheme, rotation marks, measurement region &mdash; are not physics, and a record
+        should not be re-stamped because you turned a marker on.</dd>
+      <dt>Download CSV / TXT</dt><dd>The CSV keeps the table's structure, with a leading
+        <i>kind</i> column so a spreadsheet can still separate the inputs lines from the
+        readings. The TXT is the same content aligned to read as a notebook. Records are
+        kept in this browser and survive a reload; <b>Clear records</b> asks first.</dd>
+    </dl>
+
     <h3 id="g-worth">Worth knowing</h3>
     <dl>
       <dt>next fill</dt><dd>N, d and &plusmn;x decide <i>which grains exist</i>, so they take
         effect when you next press Fill. Every other setting applies immediately to the grains
         already on screen.</dd>
       <dt>Pause</dt><dd>Freezes the physics <i>and</i> the readouts, so &phi; stops re-sampling
-        and stops twitching in its last digit.</dd>
+        and stops twitching in its last digit. Fill, Tap and Unload resume it themselves &mdash;
+        a command that means &ldquo;make something happen&rdquo; should not sit waiting for a
+        Run you did not know was needed. Walls are the exception: they move by sweeping, which
+        is physics, so a wall you move while paused waits for Run and says so.</dd>
+      <dt>workspaces A B C</dt><dd>Three independent benches. Each keeps its own settings, in
+        this browser, and its own packing, for this session. Switching brings back that
+        workspace's bed <i>paused</i>, so it cannot evolve while you read it; a workspace you
+        have not filled yet is simply empty. Reset returns the one you are on to the
+        defaults.</dd>
       <dt>Fit view</dt><dd>Re-frames the camera on the box. The view never moves by itself, so
         dragging one wall can never appear to move another.</dd>
     </dl>
@@ -689,13 +760,8 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
   </div>
 
   <div class="fb-wrap" id="paneRec" hidden>
-    <h2>Records</h2>
-    <p class="fb-sub">Press <b>● Record</b> in the panel to append a row: the four wall
-    positions and the four wall forces, as they are at that instant. The inputs are written
-    out again only when one of them has changed since the last record, so a run of
-    measurements under one configuration stays a run of eight numbers. Forces are read at
-    the moment you press — press it once the bed has settled; a row taken while the bed
-    was still moving is marked.</p>
+    <h2>Records<button class="ghelp" type="button" data-g="g-records"
+      title="What gets recorded, and how to read it" aria-label="Explain Records">?</button></h2>
 
     <div class="rec-tools">
       <button id="recCsv" type="button">Download CSV</button>
@@ -704,17 +770,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <span id="recCount" class="rec-count"></span>
     </div>
 
-    <div class="rec-scroll">
-      <table id="recTable">
-        <thead><tr>
-          <th>x<sub>1</sub> cm</th><th>x<sub>2</sub> cm</th>
-          <th>y<sub>1</sub> cm</th><th>y<sub>2</sub> cm</th>
-          <th>F<sub>x1</sub> N</th><th>F<sub>x2</sub> N</th>
-          <th>F<sub>y1</sub> N</th><th>F<sub>y2</sub> N</th>
-        </tr></thead>
-        <tbody id="recBody"></tbody>
-      </table>
-    </div>
+    <div id="recBlocks"></div>
   </div>
 </section>
 
@@ -738,7 +794,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-09a';
+const BUILD = '2026-09-09b';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1912,6 +1968,13 @@ function setWall(which, v){
   else if(which==='x2') t.x2 = Math.max(v, t.x1+g);
   else if(which==='y1') t.y1 = Math.min(v, t.y2-g);
   else if(which==='y2') t.y2 = Math.max(v, t.y1+g);
+  /* advanceWalls runs inside step(), so a paused page accepts the target and
+     never moves the wall. Silently. Say which it is rather than looking dead. */
+  if(!S.running && S.box[which] !== t[which]){
+    const ph = $('phase');
+    if(ph){ ph.textContent = 'paused — press ▶ Run to move the walls there';
+            ph.style.color = 'var(--warn)'; }
+  }
   syncWallUI(); fillCapacityNote();
 }
 /* put the walls somewhere instantly — only safe with no particles in the way */
@@ -2072,6 +2135,18 @@ $('bAuto').addEventListener('click', ()=>{
 });
 
 $('bFit').addEventListener('click', fitView);
+
+/* A short-lived note in the corner of the view, for things that happened but
+   have no lasting readout of their own. #phase already carries the run state
+   and must not be overwritten by them. */
+let toastT = 0;
+function toast(text, kind){
+  const el = $('toast'); if(!el) return;
+  el.textContent = text;
+  el.className = 'on' + (kind ? ' ' + kind : '');
+  clearTimeout(toastT);
+  toastT = setTimeout(()=> el.className = '', 2600);
+}
 
 /* glossary — every symbol on screen, explained in one place */
 const helpBox = $('help');
@@ -2278,16 +2353,73 @@ $('bReset').addEventListener('click', resetAll);
    packing and a dense one can be set up side by side and switched between
    without writing either configuration down, and both survive closing the page.
 
-   What is stored is the settings, not the packing — there is one set of
-   particles, shared. Switching therefore pauses the run rather than emptying
-   the box: you keep the bed you poured, and nothing moves under a set of
-   numbers you have not looked at yet. Where the new tab's walls differ they
-   become the TARGET, and sweep there when you press Run, because landing them
-   on top of a packed bed would put hundreds of disks outside their container in
-   a single frame. Reset still clears, and resets whichever tab you are on. */
+   Each workspace owns its own PACKING as well as its own settings, so tab B
+   never shows you the bed you poured in tab A. Switching stows the current
+   particles, walls, contact springs and wall averages under the tab you are
+   leaving and brings back whatever the tab you are entering had — an empty
+   box if it has never been filled. A restored bed arrives PAUSED, so it cannot
+   evolve while you are still reading it; an empty one simply runs.
+
+   Settings live in localStorage and survive closing the page. Packings do not:
+   they are held in memory for this session only. Storing three beds of eight
+   hundred disks would work, but a restored bed without its contact springs is
+   not the bed you left — the friction history is what holds a lateral load —
+   and quietly handing back something subtly different is worse than handing
+   back nothing. Reset still clears, and resets whichever tab you are on. */
 const TABS = [1,2,3], TAB_NAME = {1:'A', 2:'B', 3:'C'};
 const tabKey = i => 'glab_tab_' + i;
 let activeTab = 1, lastSaved = '';
+
+/* ---- per-workspace packings, in memory ---------------------------------
+   Everything the physics needs to carry on exactly where it left off. The
+   neighbour list comes with it: PL.xi holds the inter-particle tangential
+   springs, and dropping those would let a bed under lateral load relax the
+   moment it came back — the very thing you switched away to preserve. Arrays
+   are moved by reference, never copied: only one workspace is live at a time,
+   so each keeps its own and nothing is shared. */
+const PACKS = {};
+function grabPack(){
+  return {
+    P: S.P, contacts: S.contacts, wxi: WXI,
+    pl: {i:PL.i, j:PL.j, xi:PL.xi, ax:PL.ax, ay:PL.ay,
+         n:PL.n, cap:PL.cap, skin:PL.skin, nAt:PL.nAt, valid:PL.valid},
+    box: {...S.box}, boxT: {...S.boxT},
+    t: S.t, phase: S.phase, toPlace: S.toPlace, placeAcc: S.placeAcc,
+    muActive: S.muActive, gActive: S.gActive,
+    wall: {...S.wall}, shear: {...S.shear},
+    wallAcc: {...S.wallAcc}, shearAcc: {...S.shearAcc}, wallCnt: S.wallCnt,
+    meas: S.meas, phiMC: S.phiMC, overlapPct: S.overlapPct,
+    lockIn: S.lockIn, jammedAt: S.jammedAt, hist: S.hist
+  };
+}
+function putPack(p){
+  if(!p){
+    /* Fresh containers, not a truncation. clearAll() empties S.P, S.contacts and
+       S.hist IN PLACE, and the arrays it would empty are the ones the workspace
+       we just left is holding a reference to — so clearing for the incoming
+       workspace would erase the outgoing one's bed as well, and the next Fill
+       would then fill both. Hand the live state new containers and leave the
+       stowed ones alone. */
+    S.P = []; S.contacts = []; S.hist = [];
+    WXI = new Float64Array(0);
+    Object.assign(PL, {i:null, j:null, xi:null, ax:null, ay:null,
+                       n:0, cap:0, nAt:-1, valid:false});
+    clearAll();
+    return 0;
+  }
+  S.P = p.P; S.contacts = p.contacts; WXI = p.wxi;
+  Object.assign(PL, p.pl);
+  Object.assign(S.box, p.box); Object.assign(S.boxT, p.boxT);
+  S.t = p.t; S.phase = p.phase; S.toPlace = p.toPlace; S.placeAcc = p.placeAcc;
+  S.muActive = p.muActive; S.gActive = p.gActive;
+  Object.assign(S.wall, p.wall);       Object.assign(S.shear, p.shear);
+  Object.assign(S.wallAcc, p.wallAcc); Object.assign(S.shearAcc, p.shearAcc);
+  S.wallCnt = p.wallCnt;
+  S.meas = p.meas; S.phiMC = p.phiMC; S.overlapPct = p.overlapPct;
+  S.lockIn = p.lockIn; S.jammedAt = p.jammedAt; S.hist = p.hist;
+  S._measureOnce = true;
+  return S.P.length;
+}
 
 function readTab(i){
   try {
@@ -2310,17 +2442,32 @@ function saveTab(force){
 }
 function selectTab(i, initial){
   if(!initial && i === activeTab) return;
-  if(!initial) saveTab();         // keep what the tab you are leaving was showing
+  if(!initial){
+    saveTab();                    // keep what the tab you are leaving was showing
+    PACKS[activeTab] = grabPack();
+  }
   activeTab = i;
   for(const t of TABS) $('tab'+t).className = 'tab' + (t === i ? ' on' : '');
+  /* The packing has to land BEFORE the settings, because applySnapshot decides
+     whether the walls may jump or must sweep by asking whether the box is
+     empty — and that has to be the incoming workspace's box, not the one you
+     are leaving. */
+  const n = putPack(PACKS[i]);
+  /* Restoring hands those arrays back to the live state, which will go on
+     mutating them. Leaving a second reference in PACKS would make the stowed
+     copy silently track the live one. */
+  delete PACKS[i];
   const saved = readTab(i);
-  const held = S.P.length;
-  applySnapshot(saved || DEFAULTS,
-    'workspace ' + TAB_NAME[i] +
-    (saved ? ' \u2014 settings restored' : ' \u2014 defaults'));
-  /* The packing stays where it is; the run pauses so nothing moves under a set
-     of numbers you have not looked at yet. Press Run when you are ready. */
-  if(held) setPaused(true, 'workspace ' + TAB_NAME[i] + ' \u2014 paused, packing kept');
+  applySnapshot(saved || DEFAULTS, null);
+  if(n) setPaused(true, 'workspace ' + TAB_NAME[i] + ' \u2014 its packing, paused');
+  else {
+    setPaused(false);
+    fitView();
+    const ph = $('phase');
+    if(ph){ ph.textContent = 'workspace ' + TAB_NAME[i] +
+              (saved ? ' \u2014 settings restored, box empty' : ' \u2014 defaults');
+            ph.style.color = 'var(--accent)'; }
+  }
   saveTab(true);                  // the tab now exists, at exactly these values
 }
 for(const t of TABS) $('tab'+t).addEventListener('click', ()=> selectTab(t));
@@ -2328,16 +2475,27 @@ setInterval(saveTab, 1000);
 addEventListener('pagehide', ()=> saveTab());
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveTab(); });
 
+/* Commands that mean "make something happen" cannot sit waiting for a Run that
+   the person pressing them does not know is needed. depositTick, growTick and
+   step all live inside `if(S.running)`, so a paused page answered Fill with
+   "filling", a queue of 800, and not one particle. */
+function resumeFor(what){
+  if(S.running) return;
+  setPaused(false);
+  const ph = $('phase');
+  if(ph){ ph.textContent = 'resumed — ' + what; ph.style.color = 'var(--accent)'; }
+}
 $('bFill').addEventListener('click', ()=>{
   /* Visible acknowledgement the instant the handler runs. Without it a click
      that registered but is waiting on a slow first frame looks identical to a
      click that never landed. */
   const ph = $('phase');
   if(ph){ ph.textContent = 'Fill pressed…'; ph.style.color = 'var(--accent)'; }
+  resumeFor('filling');
   startFill();
 });
-$('bTap').addEventListener('click', tap);
-$('bUnload').addEventListener('click', unload);
+$('bTap').addEventListener('click', ()=>{ resumeFor('tapping'); tap(); });
+$('bUnload').addEventListener('click', ()=>{ resumeFor('unloading'); unload(); });
 $('bClear').addEventListener('click', clearAll);
 /* Pausing is reached from two places now — the button and a workspace switch —
    so it lives in one function rather than being written out at each. */
@@ -2646,12 +2804,17 @@ const REC = {
       settled: S.phase === 'settled' || (S.P.length > 0 && isQuiet())});
     if(this.rows.length > this.MAX) this.rows.splice(0, this.rows.length - this.MAX);
     this.save(); this.render();
-    const ph = $('phase');
-    if(ph){
-      ph.textContent = 'recorded \u2014 ' + this.dataCount() +
-                       (this.dataCount() === 1 ? ' row' : ' rows');
-      ph.style.color = 'var(--ok)';
-    }
+    /* The table is at the foot of the page and usually closed, so a record that
+       worked and a click that missed look identical from where you are standing.
+       Two acknowledgements, both where you are already looking: the button
+       itself flashes, and a note appears in the corner of the view. */
+    const btn = $('bRecord');
+    if(btn){ btn.classList.remove('flash'); void btn.offsetWidth; btn.classList.add('flash'); }
+    toast('\u25cf Recorded \u2014 ' + this.dataCount() +
+          (this.dataCount() === 1 ? ' row' : ' rows') +
+          (this.rows[this.rows.length - 2] &&
+           this.rows[this.rows.length - 2].k === 'set' ? ', with new inputs' : ''),
+          this.rows[this.rows.length - 1].settled ? 'ok' : 'warn');
   },
 
   save(){ try { localStorage.setItem('glab_records', JSON.stringify(this.rows)); } catch {} },
@@ -2663,43 +2826,64 @@ const REC = {
     } catch { this.rows = []; }
   },
 
+  /* One block per set of inputs: the inputs above, then the table of readings
+     taken under them. A change of inputs starts a NEW block with its own
+     header, so the eight columns are never interrupted and every table is a
+     run under one configuration. */
   render(){
-    const body = $('recBody'); if(!body) return;
+    const host = $('recBlocks'); if(!host) return;
     const n = this.dataCount();
     $('recBadge').textContent = n ? '(' + n + ')' : '';
     $('recCount').textContent = n
       ? n + (n === 1 ? ' row' : ' rows') + ' \u00b7 kept in this browser'
       : '';
     if(!this.rows.length){
-      body.innerHTML = '<tr class="rec-empty"><td colspan="8">No records yet \u2014 press ' +
-                       '<b>\u25cf Record</b> in the panel.</td></tr>';
+      host.innerHTML = '<div class="rec-empty">No records yet \u2014 press ' +
+                       '<b>\u25cf Record</b> in the panel.</div>';
       sizeLab(); return;
     }
     const esc = t => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
     const label = Object.fromEntries(REC_VARS.map(v => [v.key, v.label]));
-    let prev = null, html = '';
+    const HEAD = '<thead><tr>' +
+      ['x<sub>1</sub> cm','x<sub>2</sub> cm','y<sub>1</sub> cm','y<sub>2</sub> cm',
+       'F<sub>x1</sub> N','F<sub>x2</sub> N','F<sub>y1</sub> N','F<sub>y2</sub> N']
+      .map(h => '<th>' + h + '</th>').join('') + '</tr></thead>';
+
+    let prev = null, out = '', open = false, bodyRows = '', count = 0, head = '';
+    const flush = () => {
+      if(!open) return;
+      out += head + '<div class="rec-scroll"><table class="rectab">' + HEAD +
+             '<tbody>' + (bodyRows ||
+               '<tr><td colspan="8" style="text-align:center;color:var(--muted)">' +
+               'no readings under these inputs</td></tr>') + '</tbody></table></div></div>';
+      bodyRows = ''; count = 0; open = false;
+    };
     for(const r of this.rows){
       if(r.k === 'set'){
+        flush();
         const cells = r.vars.map(([k, val]) => {
-          const changed = prev && (Object.fromEntries(prev)[k] !== val);
+          const was = prev && Object.fromEntries(prev)[k];
+          const changed = prev && was !== val;
           return '<span><i>' + esc(label[k] || k) + '</i><b' +
-                 (changed ? ' class="changed" title="changed from ' +
-                            esc(Object.fromEntries(prev)[k]) + '"' : '') +
+                 (changed ? ' class="changed" title="was ' + esc(was) + '"' : '') +
                  '>' + esc(val) + '</b></span>';
         }).join('');
-        html += '<tr class="recset"><td colspan="8"><div class="recwhen">inputs \u00b7 ' +
-                esc(FB.when(r.at)) + '</div><div class="recvars">' + cells + '</div></td></tr>';
-        prev = r.vars;
+        head = '<div class="recblk"><div class="recwhen"><span>inputs</span><span>' +
+               esc(FB.when(r.at)) + '</span></div>' +
+               '<div class="recvars">' + cells + '</div>';
+        prev = r.vars; open = true;
       } else {
-        const cm = r.v.slice(0, 4).map(x => (+x).toFixed(2));
-        const fN = r.v.slice(4).map(x => (+x).toFixed(2));
-        html += '<tr' + (r.settled ? '' :
-                 ' class="unsettled" title="recorded while the bed was still moving — ' +
+        const cells = r.v.slice(0, 4).map(x => (+x).toFixed(2))
+                 .concat(r.v.slice(4).map(x => (+x).toFixed(2)));
+        bodyRows += '<tr' + (r.settled ? '' :
+                 ' class="unsettled" title="recorded while the bed was still moving \u2014 ' +
                  'these are not equilibrium forces"') + '>' +
-                cm.concat(fN).map(x => '<td>' + x + '</td>').join('') + '</tr>';
+                cells.map(x => '<td>' + x + '</td>').join('') + '</tr>';
+        count++;
       }
     }
-    body.innerHTML = html;
+    flush();
+    host.innerHTML = out;
     sizeLab();
   },
 

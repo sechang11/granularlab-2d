@@ -339,20 +339,38 @@ so a loose configuration and a dense one can be set up side by side and switched
 between without writing either down, and both survive closing the page. **Reset**
 still restores the shipped defaults, to whichever tab you are on.
 
-What is stored is the settings, not the packing — there is one set of particles,
-shared. **Switching a workspace pauses the run and keeps the bed**: you do not
-lose a fill you waited for, and nothing moves under a set of numbers you have not
-looked at yet. Reset still clears, and resets whichever tab you are on.
+Each workspace owns **its own packing** as well as its own settings, so tab B
+never shows you the bed you poured in tab A. Switching stows the current
+particles, walls, contact springs and wall averages under the tab you are
+leaving and brings back whatever the tab you are entering had — an empty box if
+it has never been filled. A restored bed arrives **paused**, so it cannot evolve
+while you are still reading it; an empty one simply runs.
 
-Where the incoming tab's walls differ they become the **target**, not the
-position. Landing them instantly on a packed bed would put hundreds of disks
-outside their container in a single frame, and on the next step the escape
-backstop would drag every one of those centres inward together. Setting the
-target instead hands the job to `advanceWalls`, which sweeps at `WALL_VMAX`
-when you press Run — the mechanism that already existed for exactly this.
-Measured across a switch from a 70 cm box to an 82 cm one with 500 grains in it:
-peak particle speed **1.17 m/s** on resume. An empty box has nothing to crush,
-so it still lands at once.
+Settings live in `localStorage` and survive closing the page. **Packings do
+not** — they are held in memory for this session only. Three beds of eight
+hundred disks would store, but a restored bed without its contact springs is not
+the bed you left (the friction history is what holds a lateral load), and quietly
+handing back something subtly different is worse than handing back nothing.
+
+Where the incoming tab's walls differ from where the walls physically are, they
+become the **target**, not the position. Landing them instantly on a packed bed
+would put hundreds of disks outside their container in a single frame, and on the
+next step the escape backstop would drag every one of those centres inward
+together. Setting the target hands the job to `advanceWalls`, which sweeps at
+`WALL_VMAX` when you press Run. Measured across a switch from a 70 cm box to an
+82 cm one holding 500 grains: peak particle speed **1.17 m/s** on resume.
+
+### One array, three workspaces
+
+The first version of this stowed `S.P` by reference. `clearAll()` empties `S.P`,
+`S.contacts` and `S.hist` **in place** — so clearing the box for the incoming
+workspace emptied the array the outgoing one was holding, and the next Fill
+filled both. A→B→A came back with B's 150 grains sitting in A's 60 cm box.
+
+`putPack` now hands the live state *fresh containers* rather than truncating the
+stowed ones, and a restored packing is deleted from `PACKS` so the live state is
+its only owner. Verified across A→B→C→A→B→A: 300 grains in a 60 cm box, 150 in an
+82 cm box, and an empty C, each returning to itself every time.
 
 Three details worth keeping:
 
@@ -432,6 +450,24 @@ work — an ad-hoc one and the generic `CTL` binding. The `CTL` one also clamps 
 the box's min/max and marks the readouts for an immediate re-measure, so it is
 the one that survived.
 
+## Pause made the buttons silently dead
+
+`depositTick`, `growTick` and `step` all sit inside `if(S.running)`. So a paused
+page answered **Fill** with a phase of "filling", a queue of 800 particles, and
+not one disk — forever — and answered a wall drag by moving the target and never
+the wall. Nothing said so. Since a workspace switch now leaves you paused, this
+was reachable without ever touching the Pause button.
+
+Two different fixes, because they are two different situations:
+
+- **Fill, Tap and Unload resume the run themselves.** A command that means "make
+  something happen" cannot sit waiting for a Run the person pressing it does not
+  know is needed.
+- **A wall says it is waiting.** Walls move by sweeping, which is physics, so a
+  wall cannot move on a frozen page. Moving one while paused now puts
+  *"paused — press ▶ Run to move the walls there"* in the status line instead of
+  looking broken.
+
 ## Records
 
 A lab notebook rather than a snapshot. **● Record**, in the panel under the other
@@ -441,12 +477,18 @@ that instant:
 | | x₁ cm | x₂ cm | y₁ cm | y₂ cm | F_x1 N | F_x2 N | F_y1 N | F_y2 N |
 |---|---|---|---|---|---|---|---|---|
 
-The inputs are written out again **only when one of them has changed** since the
-last record, so a sweep of one wall under one configuration reads as a run of
-eight-number rows rather than fifteen repeated columns. When they are written,
-they occupy a single row of the table and lay themselves out inside that one
-cell — as many columns as fit — and the value that changed is highlighted with
-its previous value on hover.
+The inputs sit **above** their table, not inside it, and a change of inputs
+**starts a new table**. Eight numeric columns interrupted every few rows by a
+fifteen-item block are hard to read down; this way every table is a run taken
+under one configuration and the eight columns stay eight columns. The inputs are
+written out again only when one of them has changed since the last record, and
+the value that changed is highlighted with its previous value on hover.
+
+The tables are striped **by pairs of columns** rather than by rows. The eight
+readings are four pairs — the two x walls, the two y walls, then their two force
+pairs — and tinting alternate pairs is what stops the eye sliding between x₂ and
+y₁ halfway across. A heavier rule before column 5 separates positions from
+forces.
 
 Two things are deliberately **absent** from that settings block:
 
@@ -454,8 +496,16 @@ Two things are deliberately **absent** from that settings block:
 - **The display choices** — colour scheme, rotation marks, the measurement
   region. A record should not be re-stamped because you turned a marker on.
 
-A row taken while the bed was still moving is marked, in the table and in both
-exports. Those forces are not equilibrium forces and nothing downstream could
+**Knowing it worked.** The table is at the foot of the page and usually closed,
+so a record that landed and a click that missed look identical from where you are
+standing. The button flashes and a note appears in the corner of the view —
+*"● Recorded — 6 rows"*, amber if the bed was still moving. `#phase` carries the
+run state and is left alone.
+
+The instructions are not in the pane; they are a **?** beside the Records
+heading, which opens the glossary at that section, like every other panel
+section. A row taken while the bed was still moving is marked, in the table and
+in both exports. Those forces are not equilibrium forces and nothing downstream could
 tell that from the numbers alone.
 
 **Download CSV** keeps the table's own structure, with a leading `kind` column so
