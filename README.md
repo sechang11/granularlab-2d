@@ -499,64 +499,75 @@ target fill and says so in the corner. A box that already holds N is left exactl
 where you put it. The 12 m ceiling is a guard against nonsense, not a capacity
 limit — the largest N and largest grain the UI offers need 9.8 m.
 
-**⚖ Balance walls** servos all four walls, in symmetric pairs about the centre of
-the box, until the packing pushes back with the same force on every one. Only two
-of the four conditions are ours to set. Static equilibrium gives the other two
-free, and they are not negotiable:
+**⚖ Consolidate to σ₃** is a biaxial cell. The floor and the left wall are the
+frame and never move; the **lid** and the **right wall** are the platens, and each
+is driven inward until the normal *stress* on it reaches σ₃:
 
-    F_x1 = F_x2              (Σ horizontal forces on the packing = 0)
-    F_y1 = F_y2 + W          (Σ vertical forces on the packing = 0)
+    σ_t = F_t / L_t     L_t = the box width,  the lid's length
+    σ_r = F_r / L_r     L_r = the box height, the right wall's length
 
-so the floor always carries the lid plus the weight — which is exactly the sense
-in which **F_y1 − W = F_y2** counts as equal. Drive the side pair and the lid to
-one F*, and the floor follows to F* + W by itself. F* is set as a multiple of the
-bed weight (default 1.00), so the same number stays meaningful when N, d or ρ
-change.
+In 2D the disks are unit thickness, so a wall of length L metres presents L m² of
+face and F/L is a genuine pressure. σ₃ is set in kPa, default 18.
 
-Measured, 400 grains in an 82 cm box, F* = W: **X1 = 0.974 W, X2 = 0.970 W,
-Y2 = 1.012 W, Y1 − W = 1.012 W**, Σ force residual 0.24% / 0.03%, φ = 0.842,
-overlap 3.14%. And on a deliberately hard case — 300 grains rattling around a
-131 cm box, five times too big for them — it closed to 87 × 29.6 cm and landed on
-X1 = X2 = 0.956 W, Y2 = Y1 − W = 1.025 W in about 700 frames.
+**Two platens are enough for four walls**, because statics fixes the rest:
 
-### Three things the servo got wrong first
+- Σ horizontal = 0 gives F_x1 = F_x2, and the side walls are the same length, so
+  **σ_x1 = σ_x2** as well. The left wall follows the right one exactly, at no cost
+  — which is why driving the right one drives both.
+- Σ vertical = 0 gives F_y1 = F_y2 + W. Floor and lid are also the same length, so
+  **σ_y1 = σ_t + W/L_t**: the floor reads higher than the lid by the weight of the
+  grains spread over the box width. It is the one wall that cannot be driven to
+  σ₃, and the reason is gravity, not the controller.
 
-1. **The grid ate every step.** Wall positions snap to `WALL_GRID`, 0.1 mm.
-   The servo's steps are much smaller — closing a 5 kN error takes about 0.03 mm —
-   so `snapWall` rounded every one to zero and the box never moved at all. The
-   residual the grid swallows is now carried to the next tick, so sub-grid steps
-   accumulate until they cross it.
+The wall table gains a live **σ kPa** column, with σ₃ shown on the weight row so
+the column reads as a comparison. A recorded row already contains everything
+needed to recover any of these: the lid's length is x₂ − x₁ and the right wall's
+is y₂ − y₁.
+
+Measured, 400 grains, σ₃ = 18 kPa, converging in about 120 frames:
+**σ_t = 17.88, σ_r = 17.41, σ_l = 17.41** kPa — and the floor at **26.04**
+against a prediction of σ_t + W/L = **26.04**. Box 80.3 × 39.8 cm, overlap 3.39%.
+
+### Five things the servo got wrong first
+
+Each of these was found by measuring, not by reasoning about it.
+
+1. **The grid ate every step.** Wall positions snap to `WALL_GRID`, 0.1 mm, and
+   the servo's steps can be an order of magnitude smaller, so `snapWall` rounded
+   every one to zero and the box never moved at all. The residual the grid
+   swallows is now carried to the next tick.
 2. **The plant model was 250× too stiff.** It counted the contacts along a wall as
    springs in parallel, `k_n·L/d`. Measured from the trace, 0.67 cm of closure
    bought 1467 N — a real response of 2.2e5 N/m against the model's 5.5e7. A wall
-   is not pressing on a row of springs; it is straining a packing that rearranges,
-   and what answers is the bulk modulus of the bed: `0.3·k_n·H/L`, which lands
-   within 3× of measurement.
-3. **One rattler held the whole run hostage.** `isQuiet()` is a max-over-every-grain
-   test — right for "has deposition finished", far too strict here. On a converged
-   bed a single grain spinning in a pore ran at 1.4× that bar while the packing's
-   entire kinetic energy was 5.5e-6 J under a 6.5 kN load. Convergence now asks
-   whether the packing is *quasi-static relative to its load*: KE against F*·d.
-   During an active squeeze that ratio sits around 0.1 J against a 2e-3 J bar, so
-   the two states are nowhere near each other.
+   is not pressing on a row of springs; it is straining a packing that
+   rearranges, and what answers is the bulk modulus of the bed.
+3. **One rattler held the run hostage.** `isQuiet()` is a max-over-every-grain
+   test — right for "has deposition finished", far too strict here. A single grain
+   spinning in a pore ran at 1.4× that bar while the packing's entire kinetic
+   energy was 5.5e-6 J under a 6.5 kN load. Convergence now asks whether the
+   packing is quasi-static *relative to its load*.
+4. **The creep rate applied everywhere.** A wall with far to travel crawled: a box
+   five times too big needs nearly 40 cm of closure, 1270 frames at creep pace
+   before the servo was even in range. How fast a platen may move is now scheduled
+   on how much load it already carries, with the square of the shortfall ramping
+   between travel and creep.
+5. **Filtering the controller overshot by 2.5×.** σ on a short wall scatters ±17%
+   frame to frame — fewer force chains land on it, and σ_x1 and σ_x2 are
+   anti-correlated within a frame because F_x1 = F_x2 holds on average, not
+   instantaneously — so the convergence test needs a ~0.25 s average. Feeding that
+   average to the *controller* as well was a disaster: it lags sixteen frames, the
+   rate schedule reads it to decide whether a wall is still unloaded, and a wall
+   at approach speed covers seven centimetres in that time. A target of 18 kPa
+   consolidated to **46** and tripped the overlap guard. The controller reads the
+   raw stress; only the test is filtered.
 
-How fast a wall may move is scheduled on how much load it already carries — an
-unloaded wall may travel, a wall near its target must creep — with the square of
-the shortfall making that a ramp rather than a switch. Without it the creep rate
-applied everywhere, and the 131 cm case above needed 1270 frames of pure waiting
-before the walls were even close enough to servo.
+A dead-band was needed as well, or the servo chased force noise the bed itself
+generates and never went still. It stops itself if contact overlap passes 5% of a
+grain diameter, where the soft-disk law stops describing anything real.
 
-A dead-band was needed as well — without one the servo kept making 0.1 mm
-corrections against force noise the bed itself generates, so the bed never went
-still and the run never finished.
-
-It stops itself if contact overlap passes 5% of a grain diameter, because past
-that the soft-disk law is not describing anything real.
-
-**Force, not pressure.** This equalises the force on each wall, and the box it
-finds is generally not square — 80.7 × 40.5 cm in the run above, so the sides sat
-at about 15.6 kPa and the lid at 8.2 kPa. An equal-force box is an equal-pressure
-box only when it comes out square.
+**The box will not come out square**, and should not: equal stress on walls of
+different lengths means unequal force, and the shape the servos find depends on
+the packing.
 
 ## Records
 

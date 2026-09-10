@@ -389,14 +389,14 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <div><span class="lbl">packing φ</span> <b id="hPhi">–</b> &nbsp; <span class="lbl">Z</span> <b id="hZ">–</b> &nbsp; <span class="lbl">Z*</span> <b id="hZs">–</b></div>
       <div><span class="lbl">KE</span> <b id="hKE">–</b> &nbsp; <span class="lbl">max overlap</span> <b id="hOv">–</b></div>
       <table id="hWalls">
-        <tr><td class="lbl">wall</td><td class="lbl">position</td><td class="lbl">normal</td><td class="lbl">/ W</td><td class="lbl">shear</td></tr>
-        <tr id="hwX1"><td>X1 left</td><td id="pX1">–</td><td id="fX1">–</td><td id="rX1">–</td><td id="sX1">–</td></tr>
-        <tr id="hwX2"><td>X2 right</td><td id="pX2">–</td><td id="fX2">–</td><td id="rX2">–</td><td id="sX2">–</td></tr>
-        <tr id="hwY1"><td>Y1 floor</td><td id="pY1">–</td><td id="fY1">–</td><td id="rY1">–</td><td id="sY1">–</td></tr>
-        <tr id="hwY2"><td>Y2 lid</td><td id="pY2">–</td><td id="fY2">–</td><td id="rY2">–</td><td id="sY2">–</td></tr>
-        <tr><td class="lbl">weight W</td><td></td><td id="fW">–</td><td></td><td></td></tr>
-        <tr><td class="lbl">X1−X2 imbalance</td><td></td><td id="fImb">–</td><td id="rImb">–</td><td class="lbl" id="fBudget">–</td></tr>
-        <tr><td class="lbl">Σ force residual</td><td></td><td id="fResX">–</td><td id="fResY">–</td><td class="lbl">x , y</td></tr>
+        <tr><td class="lbl">wall</td><td class="lbl">position</td><td class="lbl">normal</td><td class="lbl">σ kPa</td><td class="lbl">/ W</td><td class="lbl">shear</td></tr>
+        <tr id="hwX1"><td>X1 left</td><td id="pX1">–</td><td id="fX1">–</td><td id="gX1">–</td><td id="rX1">–</td><td id="sX1">–</td></tr>
+        <tr id="hwX2"><td>X2 right</td><td id="pX2">–</td><td id="fX2">–</td><td id="gX2">–</td><td id="rX2">–</td><td id="sX2">–</td></tr>
+        <tr id="hwY1"><td>Y1 floor</td><td id="pY1">–</td><td id="fY1">–</td><td id="gY1">–</td><td id="rY1">–</td><td id="sY1">–</td></tr>
+        <tr id="hwY2"><td>Y2 lid</td><td id="pY2">–</td><td id="fY2">–</td><td id="gY2">–</td><td id="rY2">–</td><td id="sY2">–</td></tr>
+        <tr><td class="lbl">weight W</td><td></td><td id="fW">–</td><td class="lbl" id="gW">–</td><td></td><td></td></tr>
+        <tr><td class="lbl">X1−X2 imbalance</td><td></td><td id="fImb">–</td><td></td><td id="rImb">–</td><td class="lbl" id="fBudget">–</td></tr>
+        <tr><td class="lbl">Σ force residual</td><td></td><td id="fResX">–</td><td></td><td id="fResY">–</td><td class="lbl">x , y</td></tr>
       </table>
       <div id="badge">✓ NO LOCKED-IN STRESS</div>
     </div>
@@ -428,7 +428,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       </div>
       <div class="btns">
         <button id="bBalance" type="button"
-          title="Move all four walls until the force on each is equal — the floor at that force plus the weight of the grains">⚖ Balance walls</button>
+          title="Drive the lid and the right wall inward until the normal stress on each reaches σ₃. The left wall follows the right by statics; the floor sits at σ₃ + W/L.">⚖ Consolidate to σ₃</button>
       </div>
       <div class="btns">
         <button id="bRecord" type="button"
@@ -483,8 +483,8 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <div class="row"><span class="rowlab">selected wall</span><span></span><span class="val" id="bSel">none</span></div>
       <div class="row"><label for="fTarget">target fill φ<sub>box</sub></label>
         <input type="range" id="fTarget" min="0.40" max="0.86" step="0.01" value="0.84"><input class="val num" type="number" id="fTargetv" min="0.40" max="0.86" step="0.01"></div>
-      <div class="row"><label for="bal">balance target F / W</label>
-        <input type="range" id="bal" min="0.1" max="5" step="0.05" value="1.00"><input class="val num" type="number" id="balv" min="0.1" max="5" step="0.05"></div>
+      <div class="row"><label for="bal">confining stress σ<sub>3</sub> (kPa)</label>
+        <input type="range" id="bal" min="0.5" max="200" step="0.5" value="18"><input class="val num" type="number" id="balv" min="0.01" max="500" step="0.5"></div>
       <div class="row wide">
         <button id="bAuto" type="button">Size box so the balls fill it</button></div>
       <div class="row wide" style="margin-top:8px">
@@ -618,35 +618,46 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         time. Slower gives a looser bed.</dd>
     </dl>
 
-    <h3 id="g-balance">Balancing the walls</h3>
+    <h3 id="g-balance">Consolidating to &sigma;<sub>3</sub></h3>
     <dl>
-      <dt>&#9878; Balance walls</dt><dd>Moves all four walls, in symmetric pairs about the
-        centre of the box, until the packing pushes back with the same force on each of
-        them. It is a servo, the way a DEM cell is run: the further a wall's force is from
-        the target, the faster it moves, and it creeps once it is in contact so the bed is
-        compressed rather than struck.</dd>
-      <dt>balance target F / W</dt><dd>What that force should be, as a multiple of the total
-        weight of the grains. 1.00 means each wall ends up carrying about what the bed
-        weighs. Expressing it against W rather than in newtons keeps the same number
-        meaningful when you change N, d or &rho;.</dd>
-      <dt>why the floor is different</dt><dd>It is not, really — it has no choice. Static
-        equilibrium of the packing gives F<sub>y1</sub> = F<sub>y2</sub> + W in the vertical
-        and F<sub>x1</sub> = F<sub>x2</sub> in the horizontal, whatever the walls do. So the
-        floor always carries the lid plus the weight, and <b>F<sub>y1</sub> &minus; W =
-        F<sub>y2</sub></b> is the sense in which it is equal to the others. Only two numbers
-        are actually free to be controlled: the side pair and the lid.</dd>
-      <dt>when it stops</dt><dd>When the side force and the lid force are both within 2% of
-        W of the target and the bed is quiet. It also stops itself if contact overlap passes
-        5% of a grain diameter, because past that the soft-disk contact law is no longer
-        describing anything real — raise k<sub>n</sub> or lower the target.</dd>
-      <dt>reading the result</dt><dd>In the wall table the <b>/ W</b> column is the check:
-        X1, X2 and Y2 all land on the target, and Y1 on the target plus one.</dd>
-      <dt>force, not pressure</dt><dd>Worth being clear about: this equalises the <b>force</b>
-        on each wall, which is what was asked for, and the box it finds is generally not
-        square. A wall half as long carrying the same force carries twice the pressure — so
-        an equal-force box is an equal-<i>pressure</i> box only when it comes out square.
-        Measured on 400 grains at F* = W: 80.7 &times; 40.5 cm, so the sides sat at about
-        15.6 kPa and the lid at 8.2 kPa.</dd>
+      <dt>&#9878; Consolidate</dt><dd>A biaxial cell. The floor and the left wall are the
+        frame and stay where they are; the <b>lid</b> and the <b>right wall</b> are the
+        platens, and each is driven inward until the normal <i>stress</i> on it reaches
+        &sigma;<sub>3</sub>. It is a servo: the further a platen is from its target the
+        faster it moves, and it creeps once it is loaded, so the bed is compressed rather
+        than struck.</dd>
+      <dt>&sigma;<sub>3</sub> (kPa)</dt><dd>The confining stress to consolidate to. 18 kPa is
+        a typical laboratory value and the default. Stress, not force: in 2D the disks are
+        unit thickness, so a wall of length L metres presents L m&sup2; of face and
+        &sigma; = F/L is a real pressure.</dd>
+      <dt>&sigma;<sub>t</sub> and &sigma;<sub>r</sub></dt><dd>&sigma;<sub>t</sub> = F<sub>t</sub>/L<sub>t</sub>
+        with L<sub>t</sub> the box <i>width</i>, because that is how long the lid is;
+        &sigma;<sub>r</sub> = F<sub>r</sub>/L<sub>r</sub> with L<sub>r</sub> the box
+        <i>height</i>. Both are in the &sigma; column of the wall table, live, beside the
+        target.</dd>
+      <dt>why two platens are enough</dt><dd>Statics fixes the other two walls, whatever the
+        platens do. <b>&Sigma;</b> horizontal forces = 0 gives F<sub>x1</sub> = F<sub>x2</sub>,
+        and the two side walls are the same length, so &sigma;<sub>x1</sub> =
+        &sigma;<sub>x2</sub> as well &mdash; the left wall follows the right one exactly, at
+        no cost. That is why driving the right wall is driving both.</dd>
+      <dt>the floor is the exception</dt><dd><b>&Sigma;</b> vertical forces = 0 gives
+        F<sub>y1</sub> = F<sub>y2</sub> + W. Floor and lid are the same length, so
+        <b>&sigma;<sub>y1</sub> = &sigma;<sub>t</sub> + W/L<sub>t</sub></b>: the floor always
+        reads higher than the lid by the weight of the grains spread over the width of the
+        box. It is the one wall that cannot be driven to &sigma;<sub>3</sub>, and the reason
+        is gravity, not the controller. Set g = 0 and it joins the others.</dd>
+      <dt>when it stops</dt><dd>When &sigma;<sub>t</sub> and &sigma;<sub>r</sub> are both
+        within 2% of &sigma;<sub>3</sub> and the packing is quasi-static. It stops itself if
+        contact overlap passes 5% of a grain diameter, because past that the soft-disk
+        contact law is no longer describing anything real &mdash; raise k<sub>n</sub> or
+        lower &sigma;<sub>3</sub>.</dd>
+      <dt>the box will not be square</dt><dd>Equal stress on walls of different lengths means
+        unequal force, and the shape the servos find depends on the packing. That is the
+        correct behaviour: &sigma; is the thing being controlled.</dd>
+      <dt>recorded rows already carry it</dt><dd>A record row is the four wall positions and
+        the four wall forces, so every &sigma; in this section can be recovered from it:
+        the lid's length is x<sub>2</sub> &minus; x<sub>1</sub>, the right wall's is
+        y<sub>2</sub> &minus; y<sub>1</sub>.</dd>
     </dl>
 
     <h3 id="g-readouts">Top-left readouts</h3>
@@ -846,7 +857,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-09f';
+const BUILD = '2026-09-09g';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -867,7 +878,7 @@ const S = {
      overlap. The startup check below catches any future drift. */
   kn: 2.0e6, ktRatio: 0.80, zeta: 0.25, bv: 2.0, g: 9.81,
   method: 'rain', rate: 300, fillTarget: 0.84,
-  balTarget: 1.00,            // wall force to servo to, in multiples of W
+  sig3: 18.0,                 // confining stress to consolidate to, kPa
 
   P: [],                      // particles
   dt: 1e-3, sub: 8,
@@ -1435,26 +1446,31 @@ function growTick(dtFrame){
   }
 }
 
-/* ---------------------------------------------------------- wall balance --
-   Servo-controlled boundaries, the way a DEM cell is run: each wall moves at a
-   rate set by how far its force is from the target, so the box finds the size at
-   which the packing pushes back equally on every side.
+/* ------------------------------------------------------ consolidation ----
+   A biaxial cell. The floor and the left wall are the frame and never move; the
+   LID and the RIGHT wall are the platens, and each is driven until the normal
+   stress on it reaches σ₃.
 
-   Only TWO of the four conditions are ours to control. Static equilibrium gives
-   the other two for nothing, and they are not negotiable:
+       σ_t = F_t / L_t        L_t = the box width,  the lid's length
+       σ_r = F_r / L_r        L_r = the box height, the right wall's length
 
-       F_x1 = F_x2                (Σ horizontal forces on the packing = 0)
-       F_y1 = F_y2 + W            (Σ vertical forces on the packing = 0)
+   In 2D the disks are unit thickness, so a wall of length L metres presents L m²
+   of face and F/L is a genuine pressure.
 
-   so the floor always carries the lid plus the weight of the grains — which is
-   exactly what "y1 minus the weight equals y2" means, and why it counts as equal.
-   What is left is the magnitude: drive the side pair and the lid to one F*, and
-   the floor follows to F* + W on its own.
+   Two platens are enough for all four walls, because statics fixes the rest:
 
-   Walls move in symmetric pairs about the box centre, so the packing is squeezed
-   rather than shoved across the box, and all four move as the request asked. */
+     • F_x1 = F_x2 (Σ horizontal = 0), and the two side walls are the same length,
+       so σ_x1 = σ_x2 as well. The left wall follows the right one exactly, at no
+       cost — which is why driving the right one is driving both.
+     • F_y1 = F_y2 + W (Σ vertical = 0). Floor and lid are also the same length, so
+       σ_y1 = σ_t + W/L_t: the floor reads higher than the lid by the weight of the
+       grains spread over the width of the box. That is the one wall that cannot
+       be driven to σ₃, and the reason is gravity, not the controller.
+
+   Stress, not force: equal force on walls of different lengths is not equal
+   pressure, and the box these servos find is generally not square. */
 const BAL_GAIN = 0.50;         // under-relaxation; 1.0 would be a dead-beat step
-const BAL_TOL  = 0.03;         // converged within 3% of the bed weight
+const BAL_TOL  = 0.03;         // converged within 3% of σ₃
 const BAL_HOLD = 3;            // consecutive frames inside the band before it is done
 let balOk = 0;
 
@@ -1464,26 +1480,35 @@ let balOk = 0;
    energy was 5.5e-6 J under a 6.5 kN load, and the servo would have waited on it
    forever. What a servo needs to know is whether the PACKING is quasi-static, so
    compare its kinetic energy against the work scale of the load it carries:
-   moving one grain diameter against F*. During an active squeeze that ratio sits
-   around 0.1 J against a 2e-3 J bar, so the two states are not close. */
-const balQuiet = Ftar => kineticEnergy() < 1e-5 * Math.max(Ftar, 1) * S.d;
+   moving one grain diameter against the confining force. */
+const balQuiet = F => kineticEnergy() < 1e-5 * Math.max(F, 1) * S.d;
 
 /* Every wall position lands on WALL_GRID, 0.1 mm, because that is the finest
-   thing the readout can express. The servo's steps are far smaller than that:
-   the contacts along a wall are stiff enough that closing a 5 kN error takes
-   about 0.03 mm, so snapWall rounded every single step to zero and the box never
-   moved at all. The residual the grid swallows is carried to the next tick, so
-   sub-grid steps accumulate until they cross it. */
-const balRem = {x1:0, x2:0, y1:0, y2:0};
-function balReset(){ balRem.x1 = balRem.x2 = balRem.y1 = balRem.y2 = 0; }
+   thing the readout can express. The servo's steps can be far smaller than that,
+   so snapWall rounded them to zero and the box never moved at all. The residual
+   the grid swallows is carried to the next tick, so sub-grid steps accumulate
+   until they cross it. */
+const balRem = {x2:0, y2:0};
+
+/* The stress a single frame reports is noisy — measured on a converged bed,
+   σ on the right wall scattered ±17% frame to frame while the lid, three times
+   as long and carrying three times as many contacts, scattered a few percent.
+   A short wall simply has fewer force chains landing on it, and σ_x1 and σ_x2
+   are anti-correlated within a frame because F_x1 = F_x2 holds on average, not
+   instantaneously. Servoing on that chases noise and never converges, so both
+   the control and the convergence test run on a ~0.25 s exponential average. */
+const BAL_AVG = 1/16;
+let sBarT = 0, sBarR = 0, sBarSeeded = false;
+function balReset(){
+  balRem.x2 = balRem.y2 = 0;
+  sBarT = sBarR = 0; sBarSeeded = false;
+}
 function balNudge(dx, dy){
   const t = S.boxT, g = BMIN();
-  const want = {x1:t.x1 + dx/2 + balRem.x1, x2:t.x2 - dx/2 + balRem.x2,
-                y1:t.y1 + dy/2 + balRem.y1, y2:t.y2 - dy/2 + balRem.y2};
-  /* the same guard setWall applies: opposite walls may never cross or touch */
-  want.x1 = Math.min(want.x1, want.x2 - g);
-  want.y1 = Math.min(want.y1, want.y2 - g);
-  for(const k of ['x1','x2','y1','y2']){
+  const want = {x2: t.x2 - dx + balRem.x2, y2: t.y2 - dy + balRem.y2};
+  want.x2 = Math.max(want.x2, t.x1 + g);      // the same guard setWall applies
+  want.y2 = Math.max(want.y2, t.y1 + g);
+  for(const k of ['x2','y2']){
     t[k] = snapWall(want[k]);
     /* if a clamp moved the wall somewhere else entirely, do not hoard the
        difference — only the grid's rounding belongs in the residual */
@@ -1492,63 +1517,75 @@ function balNudge(dx, dy){
   syncWallUI();                  // once, not once per wall
 }
 
-function balanceTick(){
-  const W = totalWeight();
-  if(!S.P.length || W <= 0){ S.phase = 'idle'; return; }
-  const Ftar = S.balTarget * W;
-  const side = 0.5*(S.wall.L + S.wall.R);      // equal by equilibrium; average out the noise
-  const lid  = S.wall.T;
-  const ex = Ftar - side, ey = Ftar - lid;
+const kPa = pa => pa/1000;
+/* σ on each wall: the side pair are as long as the box is tall, the lid and the
+   floor as long as it is wide. */
+function wallStress(){
+  const Lh = Math.max(1e-9, BW()), Lv = Math.max(1e-9, BH());
+  return {x1:S.wall.L/Lv, x2:S.wall.R/Lv, y1:S.wall.B/Lh, y2:S.wall.T/Lh};
+}
 
-  /* dF/dx for a wall. The first version of this counted the contacts along the
-     wall as springs in parallel — k_n·L/d — and was wrong by a factor of 250,
-     measured: 0.67 cm of closure bought 1467 N, so the real response is 2.2e5
-     N/m where that model predicted 5.5e7. A wall is not pressing on a row of
-     springs; it is straining a packing that rearranges, and what answers is the
-     bulk modulus of the bed. For a 2D packing that is a fraction of k_n — the
-     0.3 below — and the geometry enters as the aspect ratio, not as the grain
-     size:  ΔF = (E·H)·(Δx/L). That lands within 3× of measurement, which is what
-     a proportional controller with a capped step needs. */
-  const kx = 0.3 * S.kn * BH()/Math.max(1e-9, BW());
-  const ky = 0.3 * S.kn * BW()/Math.max(1e-9, BH());
-  /* How fast a wall may move depends on how much load it is already carrying.
-     An unloaded wall has nothing to be gentle with and may travel; a wall near
-     its target must creep, or the bed is struck rather than compressed. The
-     square of the shortfall makes that a smooth ramp between the two rather
-     than a switch, and it matters: a 131 cm box holding 300 grains has to close
-     to about 55 cm a side before the forces can be equal, and at the creep rate
-     alone that is 1270 frames of waiting. */
-  const rate = f => {
-    const slack = 1 - clamp(Math.abs(f)/Math.max(Ftar, 1e-9), 0, 1);
+function balanceTick(){
+  if(!S.P.length){ S.phase = 'idle'; return; }
+  const Ltop = Math.max(1e-9, BW()), Lright = Math.max(1e-9, BH());
+  const tar = S.sig3*1000;                       // kPa → Pa
+  /* The CONTROLLER reads the raw stress and the CONVERGENCE TEST reads the
+     average. Filtering the controller's input as well overshot badly: the
+     average lags about sixteen frames, the rate schedule below reads it to
+     decide whether a wall is still unloaded, and a wall travelling at approach
+     speed covers seven centimetres in that time. Measured, with the average fed
+     to both: a target of 18 kPa consolidated to 46 and tripped the overlap
+     guard. The proportional term is its own filter; the test is what needed
+     one. */
+  const st = S.wall.T/Ltop, sr = S.wall.R/Lright;
+  if(!sBarSeeded){ sBarT = st; sBarR = sr; sBarSeeded = true; }
+  else { sBarT += (st - sBarT)*BAL_AVG; sBarR += (sr - sBarR)*BAL_AVG; }
+  const et = tar - st, er = tar - sr;
+
+  /* dσ/dx for a platen. An earlier version counted the contacts along a wall as
+     springs in parallel — k_n·L/d — and was wrong by a factor of 250, measured:
+     0.67 cm of closure bought 1467 N, a real response of 2.2e5 N/m where that
+     model predicted 5.5e7. A wall is not pressing on a row of springs; it is
+     straining a packing that rearranges, and what answers is the bulk modulus of
+     the bed — a fraction of k_n, the 0.3 below. Per unit of wall length that
+     leaves dσ/dx = 0.3·k_n divided by the box dimension being strained. */
+  const kr = 0.3*S.kn/Ltop;      // the right platen strains the box's width
+  const kt = 0.3*S.kn/Lright;    // the lid strains its height
+
+  /* How fast a platen may move depends on how much load it already carries. An
+     unloaded wall has nothing to be gentle with and may travel; one near its
+     target must creep, or the bed is struck rather than compressed. The square
+     of the shortfall ramps between the two rather than switching. */
+  const rate = sig => {
+    const slack = 1 - clamp(Math.abs(sig)/Math.max(tar, 1e-9), 0, 1);
     return (0.01 + 0.14*slack*slack) * S.d;
   };
-  const capX = rate(side), capY = rate(lid);
   /* Dead-band. Without it the servo keeps making tenth-of-a-millimetre
      corrections against force noise the bed itself generates, so the bed never
-     goes still and the run never finishes. Inside the band the wall simply
-     holds, which is what lets the packing damp out and the forces settle. */
-  const tol = BAL_TOL*W;
-  const inX = Math.abs(ex) < tol, inY = Math.abs(ey) < tol;
-  const dx = inX ? 0 : clamp(BAL_GAIN*ex/kx, -capX, capX);
-  const dy = inY ? 0 : clamp(BAL_GAIN*ey/ky, -capY, capY);
+     goes still and the run never finishes. */
+  const tol = BAL_TOL*tar;
+  const inT = Math.abs(tar - sBarT) < tol, inR = Math.abs(tar - sBarR) < tol;
+  const dy = inT ? 0 : clamp(BAL_GAIN*et/kt, -rate(st), rate(st));
+  const dx = inR ? 0 : clamp(BAL_GAIN*er/kr, -rate(sr), rate(sr));
   if(dx || dy) balNudge(dx, dy);
 
-  /* Compressing a packing buys force with overlap. Past a few percent of a grain
+  /* Consolidating buys stress with overlap. Past a few percent of a grain
      diameter the soft-disk contact law stops describing anything real, so stop
-     and say so rather than reporting a number that looks converged. */
+     and say so rather than reporting a number that only looks converged. */
   if(S.overlapPct > 5){
     S.phase = 'settling';
-    toast('Stopped balancing — contact overlap passed 5% of a grain. ' +
-          'Raise kₙ or lower the target.', 'warn');
+    toast('Stopped — contact overlap passed 5% of a grain. Raise k\u2099 or lower σ₃.', 'warn');
     return;
   }
-  balOk = (inX && inY && balQuiet(Ftar)) ? balOk + 1 : 0;
+  balOk = (inT && inR && balQuiet(tar*0.5*(Ltop+Lright))) ? balOk + 1 : 0;
   if(balOk >= BAL_HOLD){
     S.phase = 'balanced';
     S._measureOnce = true;
     resetWallAvg();
-    toast('Balanced — every wall at ' + fmtN(Ftar) + ', floor at ' +
-          fmtN(Ftar + W) + ' (= F* + W)', 'ok');
+    const sg = wallStress();
+    toast('Consolidated — σₜ ' + kPa(sg.y2).toFixed(2) + ', σᵣ ' +
+          kPa(sg.x2).toFixed(2) + ' kPa · floor ' + kPa(sg.y1).toFixed(2) +
+          ' (σₜ + W/L)', 'ok');
   }
 }
 
@@ -1876,18 +1913,23 @@ function paintReadouts(){
      The floor is expected near 1.00; the sides follow Rankine; the lid should be
      0.00 unless the packing is pressed into its container. */
   const b = S.box;
-  const wallRow = (key, pid, fid, rid, sid, pos, force, shear) => {
+  const sg = wallStress();
+  const wallRow = (key, pid, fid, gid, rid, sid, pos, force, shear, sigma) => {
     $(pid).textContent = CM(pos)+' cm';
     $(fid).textContent = fmtN(force);
+    $(gid).textContent = kPa(sigma).toFixed(2);
     $(rid).textContent = W>0 ? (force/W).toFixed(3) : '–';
     $(sid).textContent = fmtN(Math.abs(shear));
     const tr = $('hw'+key.toUpperCase());
     if(tr) tr.className = (S.sel===key || S.drag===key) ? 'sel' : '';
   };
-  wallRow('x1','pX1','fX1','rX1','sX1', b.x1, S.wall.L, S.shear.L);
-  wallRow('x2','pX2','fX2','rX2','sX2', b.x2, S.wall.R, S.shear.R);
-  wallRow('y1','pY1','fY1','rY1','sY1', b.y1, S.wall.B, S.shear.B);
-  wallRow('y2','pY2','fY2','rY2','sY2', b.y2, S.wall.T, S.shear.T);
+  wallRow('x1','pX1','fX1','gX1','rX1','sX1', b.x1, S.wall.L, S.shear.L, sg.x1);
+  wallRow('x2','pX2','fX2','gX2','rX2','sX2', b.x2, S.wall.R, S.shear.R, sg.x2);
+  wallRow('y1','pY1','fY1','gY1','rY1','sY1', b.y1, S.wall.B, S.shear.B, sg.y1);
+  wallRow('y2','pY2','fY2','gY2','rY2','sY2', b.y2, S.wall.T, S.shear.T, sg.y2);
+  /* the target, on the same row as the weight, so the column reads as a
+     comparison rather than four unanchored numbers */
+  $('gW').textContent = 'σ₃ ' + (+S.sig3).toFixed(2);
   if(wallsSettling()) $('bSel').textContent = 'wall sweeping…';
   $('fW').textContent = fmtN(W);
 
@@ -1963,8 +2005,8 @@ function paintReadouts(){
     idle:'idle', filling:'depositing…', growing:'inflating particles…',
     settling:'settling…', settled:'settled', unloading:'unloading (g = 0)…',
     jammed:'JAMMED — bed reached the lid, '+S.toPlace+' balls never placed',
-    balancing:'balancing walls…',
-    balanced:'BALANCED — equal force on every wall'
+    balancing:'consolidating to \u03c3\u2083\u2026',
+    balanced:'CONSOLIDATED \u2014 \u03c3 on the lid and the right wall both at \u03c3\u2083'
   })[S.phase] || S.phase;
   /* Say it plainly while paused: the readouts are deliberately frozen, so a
      still phi is the expected behaviour rather than a stuck simulation. */
@@ -2090,7 +2132,7 @@ const CTL = {
   cG:      {get:()=>S.g,           set:v=>S.g=v,          dp:2,
             after:()=>{ if(S.phase!=='unloading') S.gActive=S.g; }},
   fTarget: {get:()=>S.fillTarget,  set:v=>S.fillTarget=v, dp:2, after:fillCapacityNote},
-  bal:     {get:()=>S.balTarget,   set:v=>S.balTarget=v,  dp:2},
+  bal:     {get:()=>S.sig3,        set:v=>S.sig3=v,       dp:2},
   fRate:   {get:()=>S.rate,        set:v=>S.rate=v,       dp:0},
   wX1:     {get:()=>S.boxT.x1*100, set:v=>setWall('x1',v/100), dp:2, wall:true},
   wX2:     {get:()=>S.boxT.x2*100, set:v=>setWall('x2',v/100), dp:2, wall:true},
@@ -2482,9 +2524,10 @@ $('expParticles').addEventListener('click', ()=>{
    MODEL values, not slider positions. Round-tripping through a slider
    re-quantises to its step: k_n came back as 1995262 rather than 2e6, because
    the logarithmic slider steps by 0.05. */
+const SNAP_V = 2;   // 2: `bal` changed from a force multiple to sigma3 in kPa
 function snapshot(){
   return {
-    v: 1,
+    v: SNAP_V,
     ctl: Object.fromEntries(Object.keys(CTL).filter(id => !CTL[id].wall)
                                             .map(id => [id, CTL[id].get()])),
     N: S.N,
@@ -2515,8 +2558,14 @@ function setControl(id, value, kind){
 function applySnapshot(snap, note, opts){
   if(!snap) return;
   const clear = !!(opts && opts.clear);
+  /* A stored control is only meaningful if it still means what it meant when it
+     was written. `bal` was a wall-force target as a multiple of W and is now a
+     confining stress in kPa; restoring 1.00 into it would silently consolidate a
+     bed to 1 kPa instead of 18 and look like a bug in the servo. Anything from
+     before that change keeps the current default instead. */
+  const stale = (+snap.v || 1) < SNAP_V ? ['bal'] : [];
   for(const [id,v] of Object.entries(snap.ctl || {})){
-    if(!CTL[id] || !isFinite(v)) continue;
+    if(!CTL[id] || !isFinite(v) || stale.includes(id)) continue;
     CTL[id].set(+v); if(CTL[id].after) CTL[id].after();
   }
   if(isFinite(snap.N)){ S.N = clamp(Math.round(snap.N), 1, 20000); $('pN').value = S.N; }
@@ -2690,8 +2739,8 @@ $('bFill').addEventListener('click', ()=>{
 });
 $('bTap').addEventListener('click', ()=>{ resumeFor('tapping'); tap(); });
 $('bBalance').addEventListener('click', ()=>{
-  if(!S.P.length){ toast('Nothing to balance — fill the box first', 'warn'); return; }
-  resumeFor('balancing the walls');
+  if(!S.P.length){ toast('Nothing to consolidate — fill the box first', 'warn'); return; }
+  resumeFor('consolidating to σ₃');
   S.gActive = S.g;                 // an unloaded bed has no weight to balance against
   S.muActive = S.mu;
   /* Bring the lid down to the surface first. Forty centimetres of empty headroom
@@ -2985,7 +3034,7 @@ const REC_VARS = [
   {key:'gravity_m_s2',   label:'g (m/s\u00b2)', get:()=>S.g,                dp:2},
   {key:'target_phi_box', label:'target \u03c6', get:()=>S.fillTarget,       dp:2},
   {key:'rate_1_s',       label:'rate (1/s)',  get:()=>S.rate,               dp:0},
-  {key:'balance_F_over_W', label:'balance F/W', get:()=>S.balTarget,        dp:2},
+  {key:'sigma3_kPa',     label:'σ₃ (kPa)',   get:()=>S.sig3,               dp:2},
   {key:'method',         label:'method',      get:()=>$('fMethod').value,   dp:null},
 ];
 const REC_COLS = ['x1_cm','x2_cm','y1_cm','y2_cm','Fx1_N','Fx2_N','Fy1_N','Fy2_N'];
