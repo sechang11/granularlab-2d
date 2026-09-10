@@ -846,7 +846,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-09e';
+const BUILD = '2026-09-09f';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1511,10 +1511,18 @@ function balanceTick(){
      a proportional controller with a capped step needs. */
   const kx = 0.3 * S.kn * BH()/Math.max(1e-9, BW());
   const ky = 0.3 * S.kn * BW()/Math.max(1e-9, BH());
-  /* Out of contact there is nothing to be gentle with, so close the gap quickly;
-     in contact, creep, or the bed is struck rather than compressed. */
-  const capX = (Math.abs(side) < 0.02*Ftar ? 0.15 : 0.01) * S.d;
-  const capY = (Math.abs(lid)  < 0.02*Ftar ? 0.15 : 0.01) * S.d;
+  /* How fast a wall may move depends on how much load it is already carrying.
+     An unloaded wall has nothing to be gentle with and may travel; a wall near
+     its target must creep, or the bed is struck rather than compressed. The
+     square of the shortfall makes that a smooth ramp between the two rather
+     than a switch, and it matters: a 131 cm box holding 300 grains has to close
+     to about 55 cm a side before the forces can be equal, and at the creep rate
+     alone that is 1270 frames of waiting. */
+  const rate = f => {
+    const slack = 1 - clamp(Math.abs(f)/Math.max(Ftar, 1e-9), 0, 1);
+    return (0.01 + 0.14*slack*slack) * S.d;
+  };
+  const capX = rate(side), capY = rate(lid);
   /* Dead-band. Without it the servo keeps making tenth-of-a-millimetre
      corrections against force noise the bed itself generates, so the bed never
      goes still and the run never finishes. Inside the band the wall simply

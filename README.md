@@ -513,8 +513,11 @@ one F*, and the floor follows to F* + W by itself. F* is set as a multiple of th
 bed weight (default 1.00), so the same number stays meaningful when N, d or ρ
 change.
 
-Measured, 400 grains, F* = W: **X1 = 0.974 W, X2 = 0.970 W, Y2 = 1.012 W,
-Y1 − W = 1.012 W**, Σ force residual 0.24% / 0.03%, φ = 0.842, overlap 3.14%.
+Measured, 400 grains in an 82 cm box, F* = W: **X1 = 0.974 W, X2 = 0.970 W,
+Y2 = 1.012 W, Y1 − W = 1.012 W**, Σ force residual 0.24% / 0.03%, φ = 0.842,
+overlap 3.14%. And on a deliberately hard case — 300 grains rattling around a
+131 cm box, five times too big for them — it closed to 87 × 29.6 cm and landed on
+X1 = X2 = 0.956 W, Y2 = Y1 − W = 1.025 W in about 700 frames.
 
 ### Three things the servo got wrong first
 
@@ -536,6 +539,12 @@ Y1 − W = 1.012 W**, Σ force residual 0.24% / 0.03%, φ = 0.842, overlap 3.14%
    whether the packing is *quasi-static relative to its load*: KE against F*·d.
    During an active squeeze that ratio sits around 0.1 J against a 2e-3 J bar, so
    the two states are nowhere near each other.
+
+How fast a wall may move is scheduled on how much load it already carries — an
+unloaded wall may travel, a wall near its target must creep — with the square of
+the shortfall making that a ramp rather than a switch. Without it the creep rate
+applied everywhere, and the 131 cm case above needed 1270 frames of pure waiting
+before the walls were even close enough to servo.
 
 A dead-band was needed as well — without one the servo kept making 0.1 mm
 corrections against force noise the bed itself generates, so the bed never went
