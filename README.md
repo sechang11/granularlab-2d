@@ -569,6 +569,49 @@ grain diameter, where the soft-disk law stops describing anything real.
 different lengths means unequal force, and the shape the servos find depends on
 the packing.
 
+### Make equal: force, or stress
+
+What was wanted was **the same force on the left wall, the right wall and the lid**.
+What the servo above did was equalise **stress** — force divided by wall length —
+and since the box it settled into was about twice as wide as it was tall, the lid
+carried about twice the force of the side walls: 14.35 kN on the lid against
+6.93 kN on each side in that run.
+
+Force is stress times wall length, so the two agree only when the lid and the side
+walls are the same length — a square box — and with gravity on, the servo's box
+generally is not square: the side walls carry part of the bed's own weight through
+the lateral stress ratio, and the lid carries none of it. They are genuinely
+different experiments, so both are kept, behind a **make equal** selector under
+σ₃:
+
+- **force** (default) — the lid is held at σ₃ by the client's formula,
+  σ_t = F_t / L_t, and the right wall is driven to the lid's force. The left wall
+  matches the right by statics, so all three carry one force; the floor carries it
+  plus the weight of the grains.
+- **stress** — σ_t = σ_r = σ₃ exactly, as specified; the forces then differ by
+  the ratio of the wall lengths.
+
+Both are one servo with different target forces: F_t* = σ₃·W in both modes, and
+F_r* = σ₃·W (force) or σ₃·H (stress). The averages the convergence test reads
+are forces now, and the plant gains are the same bulk-modulus model expressed per
+newton rather than per pascal.
+
+Measured, 400 grains, σ₃ = 18 kPa:
+
+| | left | right | lid | floor | lid σ | side σ | overlap |
+|---|---|---|---|---|---|---|---|
+| **force** | 14.51 kN | 14.54 kN | 14.38 kN | 20.98 kN (= lid + W) | 18.28 kPa | 35.9 kPa | 4.71% |
+| **stress** | 7.23 kN | 7.14 kN | 15.30 kN | 21.89 kN (= lid + W) | 19.06 kPa | 17.89 kPa | 3.09% |
+
+The stress run started from the force run's end state, so it exercised the servo in
+reverse — platens backing off rather than closing in.
+
+One caveat on force mode worth knowing before relying on it: equal force on side
+walls half the length of the lid needs **double the stress** on them, 35.9 kPa
+against the lid's 18.3, and that compression costs overlap — 4.71% here, just
+under the 5% guard. A wider, flatter bed or a higher σ₃ will trip the guard. Raising
+k_n buys the margin back; so does a squarer box.
+
 ## Records
 
 A lab notebook rather than a snapshot. **● Record**, in the panel under the other
