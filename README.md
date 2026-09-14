@@ -661,6 +661,79 @@ Floor minus lid equalled the grains' weight to the newton in both. Held for 90
 frames at kₙ = 2 MN/m, the lid stayed within −0.24% to +0.32% of the sides. Stress
 mode still converges: lid 17.81, side walls 18.49 and 18.50 kPa.
 
+## Consolidation is about pressure
+
+The force option was built on a mistaken request and has been removed.
+**Consolidate now makes the pressure equal** on the left wall, the right wall and
+the lid, and there is no selector.
+
+**Pressure** is the force on a wall divided by that wall's own length. The two
+side walls are as long as the box is tall, y2 − y1; the lid and the floor are as
+long as it is wide, x2 − x1. With lengths in centimetres that is F / (L/100), in
+pascals, shown in kPa. The disks are unit thickness, so a wall L metres long
+presents L m² of face and this is a genuine pressure.
+
+Equal force comes free only when the walls are the same length, since F = σ·L.
+So Consolidate is two steps behind one button:
+
+1. **Square the bed, gently.** With the lid lifted out of the way and nothing
+   loaded, the right wall moves to the width at which the grains would stand as
+   tall as they are wide (their own area over the packing fraction, square-rooted)
+   and they rise or slump to fill it. Nothing is being pressed, so this cannot
+   compromise the pressures. **If the bed pushes back instead of rising** (the
+   side pressure over the height in contact climbs past four times what the
+   grains' own weight explains, or overlap passes 3.5%), squaring stops and the
+   shape it has is consolidated as it is. Skipped when already within 2% of square.
+2. **Consolidate to equal pressure.** The lid is lowered to the surface and held
+   at σ₃. The side walls head for σ₃ too; once the lid is loaded they follow the
+   lid's measured pressure, within 0.5%. Consolidated is a hold, released by moving
+   a wall by hand, Fill, Tap, Unload or Clear. If σ₃ would push contact overlap
+   past 4.5%, the load backs off and the pressures are still made equal.
+
+The floor is the one wall that cannot match: statics puts the grains' weight on
+it, so its pressure is the lid's plus W divided by the box width. The left wall is
+never driven: with no wall friction (the default) statics makes it equal to the
+right exactly; with wall friction the floor and lid can hold part of a sideways
+difference, so the left wall can legitimately read lower, and the servo matches
+the lid to the average of the two rather than forcing it.
+
+Measured, 400 grains, σ₃ = 18 kPa:
+
+| bed | squaring | box | pressure L / R / lid | floor (predicted) | forces L / R / lid |
+|---|---|---|---|---|---|
+| default (μ 0.3) | reached | 57.8 × 56.1 cm | 17.87 / 17.87 / 17.87 kPa | 29.34 (29.34) | 10.03 / 10.03 / 10.34 kN |
+| μ 1, rolling resistance 0.2 | stopped, bed pushed back | 80.3 × 41.2 cm | 16.90 / 16.91 / 16.94 kPa | 25.15 (25.15) | 6.96 / 6.96 / 13.61 kN |
+
+In the default run the lid carries 3.1% more force than the sides, which is
+exactly its extra length (57.8 / 56.1): as close to square as the equations
+allowed after loading. In the high-friction run the forces differ by the full
+length ratio because the bed would not square, and the load backed off to 93% of
+σ₃ to stay under the overlap limit.
+
+### Pressure columns in the records
+
+Each recorded row now has a third group of four columns, **p_x1, p_x2, p_y1,
+p_y2 in kPa**, beside the positions and the forces, in the table and in both the
+CSV and TXT exports. They are worked out from the row's own positions and forces
+rather than stored, so records taken before the columns existed have them too.
+Checked by hand on a recorded row: forces 10030.5 / 10030.5 / 16973 / 10343 N over
+a 57.83 × 56.10 cm box give 17.88 / 17.88 / 29.35 / 17.89 kPa, which is what the
+table shows.
+
+### Two bugs found while testing this
+
+- **Rows recorded during a hold were flagged unsettled.** The flag used the
+  strict per-grain stillness test, and a consolidated bed being held is not in the
+  settled phase. A bed that is holding now counts as settled.
+- **A matched, motionless bed could never finish consolidating.** On the
+  high-friction bed the pressures were matched and both platens frozen to a
+  hundredth of a millimetre, but total kinetic energy sat at 0.0226 J against a bar
+  of 0.0030 J indefinitely. 99.8% of it was load-bearing grains spinning in place
+  at a few rad/s; translational energy was 5.4e-5 J. Grains turning where they sit
+  move no load, so the finishing test now uses translational energy only. The same
+  spin will also keep the strict settle test from ever reporting settled at very
+  high rolling resistance.
+
 ## Records
 
 A lab notebook rather than a snapshot. **● Record**, in the panel under the other
