@@ -663,15 +663,28 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <dt>&sigma;<sub>3</sub> (kPa)</dt><dd>18 kPa is a typical laboratory confining stress
         and the default. In 2D the disks are unit thickness, so a wall of length L metres
         presents L m&sup2; of face and F/L is a genuine pressure.</dd>
-      <dt>when it stops</dt><dd>When both platens are within 3% of their targets and the
-        packing is quasi-static. It stops itself if contact overlap passes 5% of a grain
-        diameter, where the soft-disk contact law stops describing anything real &mdash;
-        raise k<sub>n</sub> or lower &sigma;<sub>3</sub>.</dd>
+      <dt>when it is done</dt><dd>In force mode: when the lid is within 2% of its target and
+        the side walls are within <b>0.5% of the lid</b>, sustained for a third of a second with
+        the packing quasi-static. Once the lid is loaded the side walls stop aiming at a number
+        and follow the lid's measured force, so they can only finish where the lid is. In stress
+        mode both platens are held within 2% of &sigma;<sub>3</sub>.</dd>
+      <dt>it keeps holding</dt><dd>Consolidated is a hold, not a stop. The bed goes on relaxing
+        after the walls come to rest, so the servo keeps making tenth-of-a-millimetre
+        corrections and the forces stay equal while you read and record them. Moving a wall by
+        hand releases it; so do Fill, Tap, Unload and Clear.</dd>
+      <dt>when &sigma;<sub>3</sub> is out of reach</dt><dd>Equal force on side walls shorter than
+        the lid needs more pressure on them than on the lid, and pressure costs contact overlap.
+        Rather than stop with the forces unequal, the servo lowers the load until overlap stays
+        under 4.5% of a grain diameter &mdash; the forces are still made equal, at the most the
+        contacts allow &mdash; and the note says what the lid actually reached. Raise
+        k<sub>n</sub> to reach the full &sigma;<sub>3</sub>.</dd>
       <dt>reading the result</dt><dd>The <b>normal</b> column of the wall table is the check
         for force mode, the <b>&sigma; kPa</b> column for stress mode. A recorded row carries
         everything needed to recover either afterwards: the lid's length is
         x<sub>2</sub> &minus; x<sub>1</sub>, the right wall's is y<sub>2</sub> &minus;
-        y<sub>1</sub>.</dd>
+        y<sub>1</sub>. The forces in the table, the records and the exports are averaged over
+        about half a second: within a single frame the bed sloshes, and two walls carrying the
+        same load can read a kilonewton apart.</dd>
     </dl>
 
     <h3 id="g-readouts">Top-left readouts</h3>
@@ -871,7 +884,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-13a';
+const BUILD = '2026-09-13b';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1258,7 +1271,7 @@ function clearAll(){
   S.t = 0; S.toPlace = 0; S.placeAcc = 0;
   S.phiMC = 0; S.overlapPct = 0; S.lockIn = undefined; S.jammedAt = null;
   S.muActive = S.mu; S.gActive = S.g;
-  S.phase = 'idle'; S.hist.length = 0;
+  S.phase = 'idle'; S.hist.length = 0; S.wallView = null;
   resetWallAvg(); measure(); paintReadouts();
 }
 function resetWallAvg(){ S.wallAcc = {L:0,R:0,B:0,T:0}; S.shearAcc = {L:0,R:0,B:0,T:0}; S.wallCnt = 0; }
@@ -1485,9 +1498,12 @@ function growTick(dtFrame){
    Stress, not force: equal force on walls of different lengths is not equal
    pressure, and the box these servos find is generally not square. */
 const BAL_GAIN = 0.50;         // under-relaxation; 1.0 would be a dead-beat step
-const BAL_TOL  = 0.03;         // converged within 3% of σ₃
-const BAL_HOLD = 3;            // consecutive frames inside the band before it is done
-let balOk = 0;
+const BAL_TOL  = 0.03;         // approach: close enough to start matching
+const BAL_MAG  = 0.02;         // the lid holds within 2% of its target force
+const BAL_EQ   = 0.005;        // force mode: the side walls within 0.5% of the lid
+const BAL_HOLD = 20;           // frames the match must hold, either way, before the label changes
+const BAL_OVL  = 4.5;          // % of a grain: past this the load backs off, it does not stop
+let balOk = 0, balBad = 0, balScale = 1, balOwner = null;
 
 /* isQuiet() is a max-over-every-grain test — exactly right for "has deposition
    finished", far too strict here. Measured on a converged bed: one rattler
@@ -1513,10 +1529,11 @@ const balRem = {x2:0, y2:0};
    instantaneously. Servoing on that chases noise and never converges, so both
    the control and the convergence test run on a ~0.25 s exponential average. */
 const BAL_AVG = 1/16;
-let fBarT = 0, fBarR = 0, fBarSeeded = false;   // averaged lid and right-wall forces
+let fBarT = 0, fBarS = 0, fBarSeeded = false;   // averaged lid force and mean side-wall force
 function balReset(){
   balRem.x2 = balRem.y2 = 0;
-  fBarT = fBarR = 0; fBarSeeded = false;
+  fBarT = fBarS = 0; fBarSeeded = false;
+  balOk = 0; balBad = 0; balScale = 1; balOwner = null;
 }
 function balNudge(dx, dy){
   const t = S.boxT, g = BMIN();
@@ -1535,9 +1552,10 @@ function balNudge(dx, dy){
 const kPa = pa => pa/1000;
 /* σ on each wall: the side pair are as long as the box is tall, the lid and the
    floor as long as it is wide. */
-function wallStress(){
+function wallStress(F){
+  F = F || S.wall;
   const Lh = Math.max(1e-9, BW()), Lv = Math.max(1e-9, BH());
-  return {x1:S.wall.L/Lv, x2:S.wall.R/Lv, y1:S.wall.B/Lh, y2:S.wall.T/Lh};
+  return {x1:F.L/Lv, x2:F.R/Lv, y1:F.B/Lh, y2:F.T/Lh};
 }
 
 /* Both modes are the same servo with different target FORCES:
@@ -1557,71 +1575,114 @@ function wallStress(){
    different experiments, not two routes to one state. */
 function balanceTick(){
   if(!S.P.length){ S.phase = 'idle'; return; }
+
+  /* Hands off. The servo never moves the floor or the left wall, and it knows
+     where it last put the lid and the right wall. A wall anywhere else means
+     someone dragged, typed or arrow-keyed it — and a hold that quietly fought
+     them for it would make the panel feel broken. */
+  const t = S.boxT;
+  if(!balOwner) balOwner = {x1:t.x1, x2:t.x2, y1:t.y1, y2:t.y2};
+  if(t.x1 !== balOwner.x1 || t.y1 !== balOwner.y1 ||
+     Math.abs(t.x2 - balOwner.x2) > 1.5*WALL_GRID ||
+     Math.abs(t.y2 - balOwner.y2) > 1.5*WALL_GRID){
+    S.phase = 'settling';
+    toast('Consolidation released — a wall was moved by hand', 'warn');
+    return;
+  }
+
   const W = Math.max(1e-9, BW()), H = Math.max(1e-9, BH());
   const sig3 = S.sig3*1000;                        // kPa → Pa
-  const tgtT = sig3*W;
-  const tgtR = S.consMode === 'stress' ? sig3*H : tgtT;
 
-  /* The CONTROLLER reads the raw force and the CONVERGENCE TEST reads the
-     average. Filtering the controller's input as well overshot badly: the
-     average lags about sixteen frames, the rate schedule below reads its input
-     to decide whether a wall is still unloaded, and a wall travelling at approach
-     speed covers seven centimetres in that time. Measured, with the average fed
-     to both: a target of 18 kPa consolidated to 46 and tripped the overlap guard.
-     The proportional term is its own filter; the test is what needed one. */
-  const Ft = S.wall.T, Fr = S.wall.R;
-  if(!fBarSeeded){ fBarT = Ft; fBarR = Fr; fBarSeeded = true; }
-  else { fBarT += (Ft - fBarT)*BAL_AVG; fBarR += (Fr - fBarR)*BAL_AVG; }
-  const et = tgtT - Ft, er = tgtR - Fr;
+  /* Overlap is traded against MAGNITUDE, never against equality. Equal force on
+     side walls half the lid's length needs twice the pressure on them, pressure
+     costs contact overlap, and the first version of this stopped dead at 5% —
+     measured, with the lid at 14.7 kN and the sides at 12.6: a 17% gap that no
+     tolerance could close, because nothing was moving any more. Now the load
+     backs off until overlap is under the limit and the walls are made equal at
+     the most the contacts allow. The 1% gap between backing off and recovering
+     keeps it from hunting on the threshold. */
+  if(S.overlapPct > BAL_OVL) balScale = Math.max(0.2, balScale*0.995);
+  else if(S.overlapPct < BAL_OVL - 1 && balScale < 1) balScale = Math.min(1, balScale*1.002);
+
+  /* The side force is the MEAN of the left and right walls. Each one on its own
+     sloshes: measured on a held bed, left and right wobbled ±1.2% frame to frame
+     in opposite directions (correlation −0.93) while their mean moved 0.25% —
+     as steady as the lid. Only the right wall moves, and it moves both. */
+  const Ft = S.wall.T;
+  const Fs = 0.5*(S.wall.L + S.wall.R);
+  if(!fBarSeeded){ fBarT = Ft; fBarS = Fs; fBarSeeded = true; }
+  else { fBarT += (Ft - fBarT)*BAL_AVG; fBarS += (Fs - fBarS)*BAL_AVG; }
+
+  const tgtT = sig3*W*balScale;
+  let tgtS, sBand;
+  if(S.consMode === 'stress'){ tgtS = sig3*H*balScale; sBand = BAL_MAG; }
+  else {
+    /* On the way in, both platens head for the lid's target. Once the lid is
+       loaded, the side walls stop aiming at a number and aim at the lid ITSELF.
+       Two walls each allowed to land within a band of the same target can land
+       on opposite edges of it — which is how the lid finished 4% below the sides
+       — whereas a wall that follows the other one's measured force can only
+       finish where that force is. */
+    const lidLoaded = Math.abs(tgtT - fBarT) < BAL_TOL*tgtT;
+    tgtS  = lidLoaded ? fBarT : tgtT;
+    sBand = lidLoaded ? BAL_EQ : BAL_TOL;
+  }
+  const et = tgtT - Ft, es = tgtS - Fs;
 
   /* dF/dx for a platen. An earlier version counted the contacts along a wall as
      springs in parallel — k_n·L/d — and was wrong by a factor of 250, measured:
      0.67 cm of closure bought 1467 N, a real response of 2.2e5 N/m where that
      model predicted 5.5e7. A wall is not pressing on a row of springs; it is
      straining a packing that rearranges, and what answers is the bulk modulus
-     of the bed — a fraction of k_n, the 0.3 below. The stress change is that
-     modulus times the strain (travel over the dimension strained), and the force
-     is that stress times the wall's own length. */
+     of the bed — a fraction of k_n, the 0.3 below. */
   const kt = 0.3*S.kn*W/H;       // lid travel strains the height; the lid is W long
   const kr = 0.3*S.kn*H/W;       // right-wall travel strains the width; it is H long
 
-  /* How fast a platen may move depends on how much of its target load it already
-     carries. An unloaded wall has nothing to be gentle with and may travel; one
-     near its target must creep, or the bed is struck rather than compressed. */
+  /* How fast a platen may move depends on how much of its target it already
+     carries: an unloaded wall may travel, one near its target must creep, or the
+     bed is struck rather than compressed. */
   const rate = (F, tgt) => {
     const slack = 1 - clamp(Math.abs(F)/Math.max(tgt, 1e-9), 0, 1);
     return (0.01 + 0.14*slack*slack) * S.d;
   };
-  /* Dead-band, on the average. Without it the servo keeps making tenth-of-a-
-     millimetre corrections against force noise the bed itself generates, so the
-     bed never goes still and the run never finishes. */
-  const inT = Math.abs(tgtT - fBarT) < BAL_TOL*tgtT;
-  const inR = Math.abs(tgtR - fBarR) < BAL_TOL*tgtR;
+  /* Dead-bands on the averages, or the servo chases the bed's own force noise
+     and nothing ever goes still. The step itself uses the raw force: filtering
+     the controller's input overshot 18 kPa to 46 when that was tried. */
+  const inT = Math.abs(tgtT - fBarT) < BAL_MAG*tgtT;
+  const inS = Math.abs(tgtS - fBarS) < sBand*Math.max(tgtS, 1e-9);
   const dy = inT ? 0 : clamp(BAL_GAIN*et/kt, -rate(Ft, tgtT), rate(Ft, tgtT));
-  const dx = inR ? 0 : clamp(BAL_GAIN*er/kr, -rate(Fr, tgtR), rate(Fr, tgtR));
-  if(dx || dy) balNudge(dx, dy);
-
-  /* Consolidating buys load with overlap. Past a few percent of a grain diameter
-     the soft-disk contact law stops describing anything real, so stop and say so
-     rather than reporting a number that only looks converged. */
-  if(S.overlapPct > 5){
-    S.phase = 'settling';
-    toast('Stopped — contact overlap passed 5% of a grain. Raise kₙ or lower σ₃.', 'warn');
-    return;
+  const dx = inS ? 0 : clamp(BAL_GAIN*es/kr, -rate(Fs, tgtS), rate(Fs, tgtS));
+  if(dx || dy){
+    balNudge(dx, dy);
+    balOwner = {x1:t.x1, x2:t.x2, y1:t.y1, y2:t.y2};
   }
-  balOk = (inT && inR && balQuiet(0.5*(tgtT + tgtR))) ? balOk + 1 : 0;
-  if(balOk >= BAL_HOLD){
-    S.phase = 'balanced';
-    S._measureOnce = true;
-    resetWallAvg();
-    const sg = wallStress();
-    if(S.consMode === 'stress')
-      toast('Consolidated — σₜ ' + kPa(sg.y2).toFixed(2) + ', σᵣ ' +
-            kPa(sg.x2).toFixed(2) + ' kPa · floor ' + kPa(sg.y1).toFixed(2) +
-            ' (σₜ + W/L)', 'ok');
-    else
-      toast('Consolidated — left ' + fmtN(S.wall.L) + ', right ' + fmtN(S.wall.R) +
-            ', lid ' + fmtN(S.wall.T) + ' · lid at σ₃ = ' + kPa(sg.y2).toFixed(2) + ' kPa', 'ok');
+
+  const ok = inT && inS && S.overlapPct <= BAL_OVL && balQuiet(0.5*(tgtT + tgtS));
+  if(S.phase === 'balancing'){
+    balOk = ok ? balOk + 1 : 0;
+    if(balOk >= BAL_HOLD){
+      S.phase = 'balanced'; balBad = 0; S._measureOnce = true;
+      const V = wallF(), sg = wallStress(V);
+      const capped = balScale < 0.999;
+      if(S.consMode === 'stress')
+        toast('Consolidated — σₜ ' + kPa(sg.y2).toFixed(2) + ', σᵣ ' +
+              kPa(sg.x2).toFixed(2) + ' kPa · holding' +
+              (capped ? ' · σ₃ capped by contact overlap — raise kₙ' : ''), capped ? 'warn' : 'ok');
+      else
+        toast('Consolidated — left ' + fmtN(V.L) + ', right ' + fmtN(V.R) + ', lid ' + fmtN(V.T) +
+              ' · holding' +
+              (capped ? ' · lid at ' + kPa(sg.y2).toFixed(2) + ' kPa: σ₃ = ' + (+S.sig3).toFixed(2) +
+                        ' needs more than ' + BAL_OVL + '% overlap at this kₙ'
+                      : ' · lid at σ₃ = ' + kPa(sg.y2).toFixed(2) + ' kPa'),
+              capped ? 'warn' : 'ok');
+    }
+  } else {
+    /* 'balanced' is a HOLD, not a stop. The bed goes on relaxing after the walls
+       come to rest, and a servo that switched itself off let the forces drift
+       apart again. The same loops keep running inside their dead-bands; if the
+       match is lost for a sustained stretch the label says so honestly. */
+    balBad = ok ? 0 : balBad + 1;
+    if(balBad >= BAL_HOLD){ S.phase = 'balancing'; balOk = 0; }
   }
 }
 
@@ -1748,11 +1809,20 @@ function samplePhi(M){
   S.phiMC = hit/M;
 }
 
+/* What the wall table, the records and the exports show: the same forces,
+   averaged over about half a second. A single frame's average sloshes — on a
+   held, consolidated bed the left and right walls each wobbled ±1.2% frame to
+   frame in opposite directions, so two walls carrying the same load read a
+   kilonewton apart. The physics and the servo still read the raw frame. */
+const WALL_VIEW_AVG = 1/30;
+const wallF = () => S.wallView || S.wall;
 function flushWallAvg(){
   if(!S.wallCnt) return;
   const k = 1/S.wallCnt;
   S.wall  = {L:S.wallAcc.L*k,  R:S.wallAcc.R*k,  B:S.wallAcc.B*k,  T:S.wallAcc.T*k};
   S.shear = {L:S.shearAcc.L*k, R:S.shearAcc.R*k, B:S.shearAcc.B*k, T:S.shearAcc.T*k};
+  if(!S.wallView) S.wallView = {L:S.wall.L, R:S.wall.R, B:S.wall.B, T:S.wall.T};
+  else for(const q of ['L','R','B','T']) S.wallView[q] += (S.wall[q] - S.wallView[q])*WALL_VIEW_AVG;
   resetWallAvg();
 }
 
@@ -1943,13 +2013,13 @@ function drawChart(){
 const fmtN = v => v>=1000 ? (v/1000).toFixed(3)+' kN' : v.toFixed(2)+' N';
 function paintReadouts(){
   const m = S.meas, W = totalWeight();
-  const side = W>0 ? (S.wall.L+S.wall.R)/W : 0;
+  const side = W>0 ? (wallF().L+wallF().R)/W : 0;
 
   /* per-wall panel: position, normal force, and share of the total weight.
      The floor is expected near 1.00; the sides follow Rankine; the lid should be
      0.00 unless the packing is pressed into its container. */
   const b = S.box;
-  const sg = wallStress();
+  const sg = wallStress(wallF());
   const wallRow = (key, pid, fid, gid, rid, sid, pos, force, shear, sigma) => {
     $(pid).textContent = CM(pos)+' cm';
     $(fid).textContent = fmtN(force);
@@ -1959,10 +2029,10 @@ function paintReadouts(){
     const tr = $('hw'+key.toUpperCase());
     if(tr) tr.className = (S.sel===key || S.drag===key) ? 'sel' : '';
   };
-  wallRow('x1','pX1','fX1','gX1','rX1','sX1', b.x1, S.wall.L, S.shear.L, sg.x1);
-  wallRow('x2','pX2','fX2','gX2','rX2','sX2', b.x2, S.wall.R, S.shear.R, sg.x2);
-  wallRow('y1','pY1','fY1','gY1','rY1','sY1', b.y1, S.wall.B, S.shear.B, sg.y1);
-  wallRow('y2','pY2','fY2','gY2','rY2','sY2', b.y2, S.wall.T, S.shear.T, sg.y2);
+  wallRow('x1','pX1','fX1','gX1','rX1','sX1', b.x1, wallF().L, S.shear.L, sg.x1);
+  wallRow('x2','pX2','fX2','gX2','rX2','sX2', b.x2, wallF().R, S.shear.R, sg.x2);
+  wallRow('y1','pY1','fY1','gY1','rY1','sY1', b.y1, wallF().B, S.shear.B, sg.y1);
+  wallRow('y2','pY2','fY2','gY2','rY2','sY2', b.y2, wallF().T, S.shear.T, sg.y2);
   /* the target, on the same row as the weight, so the column reads as a
      comparison rather than four unanchored numbers */
   $('gW').textContent = 'σ₃ ' + (+S.sig3).toFixed(2);
@@ -1975,13 +2045,13 @@ function paintReadouts(){
      Both residuals sit at ~0 whenever the bed is genuinely static - so a non-zero
      X1-X2 is not an error, it is exactly the load the frictional floor is holding.
      The budget column is mu_w * N_floor, the most the floor could possibly hold. */
-  const imb = S.wall.L - S.wall.R;
-  const budget = S.muW*S.wall.B;
+  const imb = wallF().L - wallF().R;
+  const budget = S.muW*wallF().B;
   $('fImb').textContent = fmtN(Math.abs(imb));
   $('rImb').textContent = W>0 ? (Math.abs(imb)/W).toFixed(3) : '–';
   $('fBudget').textContent = '≤ '+fmtN(budget);
   const resX = imb + S.shear.B - S.shear.T;
-  const resY = S.wall.B - S.wall.T - S.shear.L + S.shear.R - W;
+  const resY = wallF().B - wallF().T - S.shear.L + S.shear.R - W;
   const ref = Math.max(W, 1e-9);
   const rc = v => Math.abs(v)/ref < 0.02 ? 'ok' : Math.abs(v)/ref < 0.10 ? 'warn' : 'bad';
   $('fResX').innerHTML = '<span class="'+rc(resX)+'">'+(100*resX/ref).toFixed(2)+'%</span>';
@@ -2009,25 +2079,25 @@ function paintReadouts(){
   } else $('mGrain').textContent = S.P.length ? '100% of d' : '–';
 
   $('wW').textContent = fmtN(W);
-  $('wB').textContent = fmtN(S.wall.B);
-  $('wL').textContent = fmtN(S.wall.L);
-  $('wR').textContent = fmtN(S.wall.R);
-  $('wT').textContent = fmtN(S.wall.T);
+  $('wB').textContent = fmtN(wallF().B);
+  $('wL').textContent = fmtN(wallF().L);
+  $('wR').textContent = fmtN(wallF().R);
+  $('wT').textContent = fmtN(wallF().T);
   $('wSide').textContent = (100*side).toFixed(2)+'%';
-  $('wBW').textContent   = W>0 ? (S.wall.B/W).toFixed(3) : '–';
+  $('wBW').textContent   = W>0 ? (wallF().B/W).toFixed(3) : '–';
 
   /* effective earth-pressure coefficient: side·L /(W·H). Rankine puts a settled
      granular bed near 0.3–0.5; well above that means the walls are being wedged. */
   const H = S.meas.h;
   const bedH = Math.max(1e-9, H - S.box.y1);      // height above the floor
-  const K = (W>0 && bedH>0) ? (S.wall.L+S.wall.R)*BW()/(W*bedH) : 0;
+  const K = (W>0 && bedH>0) ? (wallF().L+wallF().R)*BW()/(W*bedH) : 0;
   const kCls = K<0.55 ? 'ok' : K<0.9 ? 'warn' : 'bad';
   $('wK').innerHTML = (W>0&&H>0) ? '<span class="'+kCls+'">'+K.toFixed(2)+'</span>' : '–';
 
   /* with gravity off, anything the walls still carry is locked-in stress */
   if(S.gActive === 0 && S.P.length){
     const Wref = S.P.reduce((s,p)=>s+p.m,0)*S.g;
-    const res = (S.wall.L+S.wall.R+S.wall.B+S.wall.T)/Math.max(Wref,1e-9);
+    const res = (wallF().L+wallF().R+wallF().B+wallF().T)/Math.max(Wref,1e-9);
     S.lockIn = res;
   }
   if(S.lockIn === undefined) $('wLock').textContent = 'press Unload';
@@ -2043,8 +2113,8 @@ function paintReadouts(){
     jammed:'JAMMED — bed reached the lid, '+S.toPlace+' balls never placed',
     balancing:'consolidating to \u03c3\u2083\u2026',
     balanced: S.consMode === 'stress'
-      ? 'CONSOLIDATED \u2014 \u03c3 on the lid and the right wall both at \u03c3\u2083'
-      : 'CONSOLIDATED \u2014 equal force on the left wall, the right wall and the lid'
+      ? 'CONSOLIDATED \u2014 \u03c3 on the lid and the right wall at \u03c3\u2083 (holding)'
+      : 'CONSOLIDATED \u2014 equal force on the left wall, the right wall and the lid (holding)'
   })[S.phase] || S.phase;
   /* Say it plainly while paused: the readouts are deliberately frozen, so a
      still phi is the expected behaviour rather than a stuck simulation. */
@@ -2082,7 +2152,7 @@ function frame(t){
     if(S.phase==='growing') growTick(dtFrame);
     for(let s=0;s<S.sub;s++) step(S.dt);
     if(S.phase==='settling') settleTick();
-    if(S.phase==='balancing') balanceTick();
+    if(S.phase==='balancing' || S.phase==='balanced') balanceTick();   // balanced = holding
     if(S.phase==='unloading' && isQuiet()){ S.phase = 'settled'; }
   }
 
@@ -2510,7 +2580,7 @@ const r6 = v => (typeof v === 'number' && isFinite(v)) ? +v.toFixed(6) : v;
 function summaryRow(){
   const b = S.box, m = S.meas, W = totalWeight();
   const bedH = Math.max(1e-9, m.h - b.y1);
-  const imb = S.wall.L - S.wall.R;
+  const imb = wallF().L - wallF().R;
   return {
     build: BUILD, at: new Date().toISOString(),
     method: $('fMethod').value, phase: S.phase,
@@ -2524,16 +2594,16 @@ function summaryRow(){
     box_W_cm: r6(BW()*100), box_H_cm: r6(BH()*100),
     phi: r6(m.phi), Z: r6(m.Z), Z_star: r6(m.Zs), rattler_frac: r6(m.rat),
     bed_height_cm: r6(bedH*100), max_overlap_pct_d: r6(S.overlapPct),
-    X1_normal_N: r6(S.wall.L), X2_normal_N: r6(S.wall.R),
-    Y1_normal_N: r6(S.wall.B), Y2_normal_N: r6(S.wall.T),
+    X1_normal_N: r6(wallF().L), X2_normal_N: r6(wallF().R),
+    Y1_normal_N: r6(wallF().B), Y2_normal_N: r6(wallF().T),
     X1_shear_N: r6(S.shear.L), X2_shear_N: r6(S.shear.R),
     Y1_shear_N: r6(S.shear.B), Y2_shear_N: r6(S.shear.T),
     weight_N: r6(W),
-    bottom_over_W: W>0 ? r6(S.wall.B/W) : '',
-    side_over_W: W>0 ? r6((S.wall.L+S.wall.R)/W) : '',
-    K_eff: (W>0 && bedH>0) ? r6((S.wall.L+S.wall.R)*BW()/(W*bedH)) : '',
+    bottom_over_W: W>0 ? r6(wallF().B/W) : '',
+    side_over_W: W>0 ? r6((wallF().L+wallF().R)/W) : '',
+    K_eff: (W>0 && bedH>0) ? r6((wallF().L+wallF().R)*BW()/(W*bedH)) : '',
     residual_x_over_W: W>0 ? r6((imb + S.shear.B - S.shear.T)/W) : '',
-    residual_y_over_W: W>0 ? r6((S.wall.B - S.wall.T - S.shear.L + S.shear.R - W)/W) : '',
+    residual_y_over_W: W>0 ? r6((wallF().B - wallF().T - S.shear.L + S.shear.R - W)/W) : '',
     dt_s: S.dt, substeps: S.sub, sim_time_s: r6(S.t)
   };
 }
@@ -2703,6 +2773,10 @@ function putPack(p){
   S.wallCnt = p.wallCnt;
   S.meas = p.meas; S.phiMC = p.phiMC; S.overlapPct = p.overlapPct;
   S.lockIn = p.lockIn; S.jammedAt = p.jammedAt; S.hist = p.hist;
+  S.wallView = null;
+  /* a hold belongs to the session that set it up; a restored bed arrives paused
+     and should not start servoing walls the moment Run is pressed */
+  if(S.phase === 'balancing' || S.phase === 'balanced') S.phase = 'settled';
   S._measureOnce = true;
   return S.P.length;
 }
@@ -2896,8 +2970,8 @@ const FB = {
       phase: S.phase,
       phi: +(m.phi||0).toFixed(4), Z: +(m.Z||0).toFixed(2),
       overlap_pct_d: +(S.overlapPct||0).toFixed(2),
-      wall_N: { X1:+S.wall.L.toFixed(1), X2:+S.wall.R.toFixed(1),
-                Y1:+S.wall.B.toFixed(1), Y2:+S.wall.T.toFixed(1) },
+      wall_N: { X1:+wallF().L.toFixed(1), X2:+wallF().R.toFixed(1),
+                Y1:+wallF().B.toFixed(1), Y2:+wallF().T.toFixed(1) },
       weight_N: +totalWeight().toFixed(1),
       dt: S.dt, substeps: S.sub,
       viewport: innerWidth+'x'+innerHeight,
@@ -3097,7 +3171,7 @@ const REC = {
     const vars = this.vars(), prev = this.lastVars();
     if(!prev || JSON.stringify(prev) !== JSON.stringify(vars))
       this.rows.push({k:'set', at, vars});
-    const b = S.box, w = S.wall;
+    const b = S.box, w = wallF();   // the averaged forces, as the table shows them
     this.rows.push({k:'row', at,
       v:[b.x1*100, b.x2*100, b.y1*100, b.y2*100, w.L, w.R, w.B, w.T],
       /* "settled" is the app's own quiet test, not a guess: a row taken while

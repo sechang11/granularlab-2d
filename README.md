@@ -612,6 +612,55 @@ against the lid's 18.3, and that compression costs overlap — 4.71% here, just
 under the 5% guard. A wider, flatter bed or a higher σ₃ will trip the guard. Raising
 k_n buys the margin back; so does a squarer box.
 
+### Why the lid did not match the side walls, and the fix
+
+After the force option shipped, the lid still finished a few percent off the sides
+(live: left 14.05, right 14.04, lid 13.43 kN). Three causes, each measured:
+
+1. **Two walls landing in one band.** Each platen was allowed to settle anywhere
+   within 3% of the same target force, so the two could finish on opposite edges
+   of it, up to about 6% apart, and nothing moved them afterwards.
+2. **Consolidated meant stopped.** The bed keeps relaxing after the walls come to
+   rest, and with the servo switched off the gap drifted.
+3. **The overlap guard halted it mid-way.** Equal force on side walls half the
+   lid's length needs twice the pressure on them. At σ₃ = 18 kPa and kₙ = 2 MN/m
+   that crosses 5% contact overlap, and the old guard simply stopped: one run
+   finished with the lid at 14.7 kN and the sides at 12.6, a 17% gap that no
+   tolerance could close because nothing was moving any more.
+
+Force noise was not the problem. On a held bed the lid's force moves 0.3% frame to
+frame and the mean of the two side walls 0.25%. Left and right individually wobble
+±1.2%, but in opposite directions (correlation −0.93), because the bed sloshes
+sideways.
+
+So now:
+
+- **The side walls follow the lid itself, not a number.** Once the lid is loaded,
+  the right wall servos the mean of the left and right forces onto the lid's
+  measured force, within **0.5%**. A wall that follows the other's force can only
+  finish where that force is.
+- **Consolidated is a hold.** The servo keeps making tenth-of-a-millimetre
+  corrections so the forces stay equal while you read and record them. Moving a
+  wall by hand releases it, as do Fill, Tap, Unload and Clear; switching workspace
+  drops it.
+- **Overlap trades magnitude, never equality.** Past 4.5% overlap the load backs
+  off until the contacts are valid again; the forces are still made equal, and the
+  note says what the lid actually reached. Raise kₙ to reach the full σ₃.
+- **The wall table, records and exports show a half-second running average** of
+  each force, so two walls carrying the same load read the same. The physics and
+  the servo still read the raw frame.
+
+Measured, 400 grains, σ₃ = 18 kPa:
+
+| kₙ | left | right | lid | lid vs sides | lid σ | overlap |
+|---|---|---|---|---|---|---|
+| 2 MN/m | 12.767 kN | 12.768 kN | 12.741 kN | −0.21% | 16.41 kPa, load backed off to 92% | 4.42% |
+| 8 MN/m | 13.985 kN | 13.985 kN | 14.009 kN | +0.17% | 17.93 kPa, full σ₃ | 2.28% |
+
+Floor minus lid equalled the grains' weight to the newton in both. Held for 90
+frames at kₙ = 2 MN/m, the lid stayed within −0.24% to +0.32% of the sides. Stress
+mode still converges: lid 17.81, side walls 18.49 and 18.50 kPa.
+
 ## Records
 
 A lab notebook rather than a snapshot. **● Record**, in the panel under the other
