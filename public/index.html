@@ -657,10 +657,13 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
         the bed last sprang keeps most of itself, a push against it first has to undo that
         spring.</dd>
       <dt>6 &middot; holding</dt><dd>Declared once the left wall, the right wall and the lid have
-        each been within 1% of &sigma;<sub>3</sub> for a second and the bed is still. It is a hold,
+        each been within 1% of &sigma;<sub>3</sub> for a second, the bed is still, and the box has
+        stopped springing back &mdash; its shape is only judged once it has stopped moving. It is a hold,
         not a stop: the bed goes on relaxing, so the walls keep making micrometre corrections and
-        the pressures stay at &sigma;<sub>3</sub> while you read and record them. Moving a wall by
-        hand releases it; so do Fill, Tap, Unload and Clear.</dd>
+        the pressures stay at &sigma;<sub>3</sub> while you read and record them. A big bed can
+        still give way after it is declared: the pressures hold, but the box can slide a percent
+        or two out of square. Press Consolidate again to square it. Moving a wall by hand
+        releases it; so do Fill, Tap, Unload and Clear.</dd>
       <dt>when it will not square</dt><dd>The grains' own weight presses the side walls harder than
         the lid. When &sigma;<sub>3</sub> is small next to that weight, a square box cannot carry
         equal pressure on its sides and lid, and the walls open out until it can; the note then
@@ -888,7 +891,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-16b';
+const BUILD = '2026-09-16c';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1530,7 +1533,8 @@ function growTick(dtFrame){
      passes      more than 0.4% out of square: push, let go, measure — at most
                  five, and none after two in a row that did not help
      holding     declared when left, right and lid have each been within 1% of σ₃
-                 for a second and the bed is still; the corrections carry on */
+                 for a second, the bed is still and the box has stopped moving;
+                 the corrections carry on */
 const SERVO = {
   LIGHT: 0.05,      // lid load while squaring, a fraction of σ₃ (at least 0.5 kPa)
   K: 0.36,          // dp/dε_v, in units of k_n
@@ -1556,7 +1560,7 @@ const SV = {};      // the servo's state, reset by balReset()
 function balReset(){
   Object.assign(SV, {stage:'', f:0, ema:null, ok:0, bad:0, own:null, squared:'',
     passes:0, declared:false, scale:1, eq0:null, dir:0, push0:0, pushAmt:0, follow:false,
-    lastRel:0, relMag:0, keep:1.0, best:Infinity, stalled:0, report:0});
+    lastRel:0, relMag:0, keep:1.0, best:Infinity, stalled:0, report:0, aSlow:0});
 }
 balReset();
 
@@ -1614,7 +1618,10 @@ const svLight  = () => Math.min(S.sig3*1000, Math.max(500, SERVO.LIGHT*S.sig3*10
 const svRelaxed = (W, H, q) => Math.log(W/H) + q/(SERVO.G_BACK*S.kn);
 function svStage(st){
   SV.stage = st; SV.f = 0;
-  if(st === 'equalizing') SV.eq0 = {a: Math.log(BW()/BH()), q: SV.ema ? SV.ema.x - SV.ema.y : 0};
+  if(st === 'equalizing'){
+    SV.eq0 = {a: Math.log(BW()/BH()), q: SV.ema ? SV.ema.x - SV.ema.y : 0};
+    SV.aSlow = SV.eq0.a;
+  }
 }
 
 const kPa = pa => pa/1000;
@@ -1726,9 +1733,16 @@ function balanceTick(){
      trails the servo's own quarter-second one */
   const shown = k => { const v = wallStress(wallF());
     return Math.abs(v.x1 - s3) < k*s3 && Math.abs(v.x2 - s3) < k*s3 && Math.abs(v.y2 - s3) < k*s3; };
+  /* The box goes on springing back for a while after the pressures are already
+     equal: 0.1–0.2% a second, measured, on the beds that later drifted out of
+     square. Judged too soon, one box passed as square, within 0.4%, and was 1.1%
+     out by the time the note came up. So the shape is only judged once it has stopped
+     moving — or after ten seconds of equal pressure, whichever comes first. */
+  SV.aSlow += (a - SV.aSlow)/60;
+  const still = Math.abs(a - SV.aSlow) < 0.0005;
   if(S.phase === 'balancing'){
     SV.ok = within(SERVO.TOL) && shown(SERVO.TOL) && svQuiet(s3) ? SV.ok + 1 : 0;
-    if(SV.ok < SERVO.HOLD) return;
+    if(SV.ok < SERVO.HOLD || (!still && SV.ok < 10*SERVO.HOLD)) return;
     if(!SV.declared && svNextPass(a)) return;
     SV.declared = true;
     S.phase = 'balanced'; SV.bad = 0; S._measureOnce = true;
@@ -1792,7 +1806,7 @@ function svReport(W, H, a){
   else {
     const weight = Wt/W/2;                            // the weight's share of the mean vertical stress
     t += ', ' + (100*off).toFixed(1) + '% from square' +
-         (weight > 0.25*S.sig3*1000 ? ' — at σ₃ = ' + (+S.sig3).toFixed(1) + ' kPa the grains’ own weight' +
+         (off > 0.03 && weight > 0.5*S.sig3*1000 ? ' — at σ₃ = ' + (+S.sig3).toFixed(1) + ' kPa the grains’ own weight' +
                                       ' is large next to σ₃ and pulls the box out of square' : '');
     kind = 'warn';
   }

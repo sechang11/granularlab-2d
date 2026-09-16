@@ -806,9 +806,14 @@ with p = (σ_x + σ_y)/2 and q = σ_x − σ_y. The pressure *level* and the pre
    shape so far.
 6. **Declared** when the left wall, the right wall and the lid have each been within
    1% of σ₃ for a second — on the servo's own quarter-second average *and* on the
-   half-second average the wall table shows, so the note never announces a number the
-   table contradicts — with the bed still. Holding, it takes 2% for two seconds to
-   lose the label, so a grain giving way does not make it flicker.
+   half-second average the wall table shows — with the bed still, *and the box has
+   stopped moving*. The box goes on springing back for a while after the pressures
+   are already equal, at 0.1–0.2% a second on the beds that later drifted; judged
+   too soon, one passed as square, within 0.4%, and read 1.1% by the time the note
+   came up. The note itself waits until the table is within 0.3% of σ₃ (or three
+   seconds), so it never quotes 17.89 on a bed that reads 18.00 a moment later.
+   Holding, it takes 2% for two seconds to lose the label, so a grain giving way
+   does not make it flicker.
 7. **Overlap no longer caps σ₃** unless contacts would pass 15% of a grain, where a
    soft-contact model has stopped describing grains; past 8% the note warns. The
    worst seen at 50 kPa was 8.8%.
@@ -820,9 +825,9 @@ with p = (σ_x + σ_y)/2 and q = σ_x − σ_y. The pressure *level* and the pre
 | | old servo (14 cases) | new servo (28 cases) |
 |---|---|---|
 | left, right and lid reach σ₃ | 6 of 14 within 2% | **28 of 28**, within 0.3% |
-| square within 0.5% | 0 of 14 | **26 of 28** — all 23 at 18 kPa, and 12, 30 and 50 kPa |
+| square within 0.5% | 0 of 14 | **24 of 28** — 21 of the 23 at 18 kPa (the other two 0.52% and 1.6%), and 12, 30 and 50 kPa |
 | lost the hold afterwards | — | 0 |
-| simulated time to declared, 18 kPa | 3–18 s | 7–25 s, median 12.5 s |
+| simulated time to declared, 18 kPa | 3–18 s | 10–33 s, median 17 s |
 
 Same beds, σ₃ = 18 kPa:
 
@@ -832,21 +837,29 @@ Same beds, σ₃ = 18 kPa:
 | 400 grains, μ 0.8 | 78.5 × 42.1 cm, 16.0 kPa (capped) | 57.8 × 57.8 cm, 18.00 kPa |
 | 200 grains | 48.1 × 34.2 cm, 18.1 kPa | 40.5 × 40.5 cm, 18.00 kPa |
 | 800 grains | 81.3 × 79.0 cm, 17.0 kPa (capped) | 79.9 × 80.1 cm, 18.00 kPa |
-| 1200 grains | 115.8 × 84.5 cm, 16.1 kPa (capped) | 99.3 × 98.9 cm, 18.03 / 18.03 / 17.96 kPa |
+| 1200 grains | 115.8 × 84.5 cm, 16.1 kPa (capped) | 99.9 × 98.3 cm, 18.00 kPa — see below |
 | 400 grains in a 40 × 120 cm box | — | 56.4 × 56.2 cm, 18.00 kPa |
 
 The floor read lid + W / (x₂ − x₁) to the hundredth of a kPa in every run.
 Consolidating again from a loaded bed works too: on one bed, 18 kPa then (without
-pressing) 30, then pressed at 10 and at 18, each came out square to 0.24% or better.
+pressing) 30, then pressed at 10 and at 18, each came out square to 0.4% or better.
 
 ### Where square is out of reach
 
 The grains' own weight presses the side walls harder than the lid. When σ₃ is
 small next to that weight, a square box cannot carry equal pressure on its sides and
-lid, and the walls open out until it can. On 400 grains: square to 0.1% at 12 kPa,
-2.1% out at 8 kPa after three passes, and 69.4 × 47.6 cm at 5 kPa, where no pass is
+lid, and the walls open out until it can. On 400 grains: square to 0.2% at 12 kPa,
+2.5% out at 8 kPa after four passes, and 69.4 × 47.6 cm at 5 kPa, where no pass is
 attempted because it would need a push of more than 35%. The pressures still converge
-— 5.02 / 5.02 / 4.99 kPa — and the note says why the box is wide.
+— 5.00 / 5.00 / 5.00 kPa — and the note says why the box is wide.
+
+A big bed can also give way *after* it has been declared. On 1200 grains the box
+was square to 0.2%; a second and a half later part of the packing rearranged and,
+with the pressures held, the box slid to 1.6% out. A pass tried from the hold did
+nothing — pushed 1.6% back, the bed sprang the whole 1.6% back again, since a bed at
+rest only reshapes past its yield point — so the hold does not try. Pressing
+Consolidate again does work, because it starts over from a light lid: the same bed
+came out 98.78 × 98.82 cm, square to 0.04%, 11.5 s later.
 
 ## Records
 
