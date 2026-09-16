@@ -664,8 +664,8 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       <dt>when it will not square</dt><dd>The grains' own weight presses the side walls harder than
         the lid. When &sigma;<sub>3</sub> is small next to that weight, a square box cannot carry
         equal pressure on its sides and lid, and the walls open out until it can; the note then
-        says the box is the squarest this bed holds at that &sigma;<sub>3</sub>. Raising
-        &sigma;<sub>3</sub>, or fewer grains, brings it back to square.</dd>
+        says so. Measured on 400 grains: square to 0.1% at 12 kPa, 2% out at 8 kPa, and 46%
+        wider than tall at 5 kPa.</dd>
       <dt>the floor</dt><dd>The one wall that cannot match. <b>&Sigma;</b> vertical forces = 0
         gives F<sub>y1</sub> = F<sub>y2</sub> + W, so the floor's pressure is the lid's plus the
         grains' weight spread over the box width &mdash; gravity, not the controller.</dd>
@@ -888,7 +888,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-16a';
+const BUILD = '2026-09-16b';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1556,7 +1556,7 @@ const SV = {};      // the servo's state, reset by balReset()
 function balReset(){
   Object.assign(SV, {stage:'', f:0, ema:null, ok:0, bad:0, own:null, squared:'',
     passes:0, declared:false, scale:1, eq0:null, dir:0, push0:0, pushAmt:0, follow:false,
-    lastRel:0, relMag:0, keep:1.0, best:Infinity, stalled:0});
+    lastRel:0, relMag:0, keep:1.0, best:Infinity, stalled:0, report:0});
 }
 balReset();
 
@@ -1722,8 +1722,8 @@ function balanceTick(){
   }
 
   const within = k => Math.abs(e.L - s3) < k*s3 && Math.abs(e.R - s3) < k*s3 && Math.abs(e.T - s3) < k*s3;
-  /* the wall table shows a half-second average, which lags the servo's own; a
-     result announced while that lag still showed 17.89 would read as a miss */
+  /* the pressures as the wall table shows them: a half-second average, which
+     trails the servo's own quarter-second one */
   const shown = k => { const v = wallStress(wallF());
     return Math.abs(v.x1 - s3) < k*s3 && Math.abs(v.x2 - s3) < k*s3 && Math.abs(v.y2 - s3) < k*s3; };
   if(S.phase === 'balancing'){
@@ -1732,13 +1732,21 @@ function balanceTick(){
     if(!SV.declared && svNextPass(a)) return;
     SV.declared = true;
     S.phase = 'balanced'; SV.bad = 0; S._measureOnce = true;
-    svReport(W, H, a);
+    SV.report = 1;
   } else {
     /* 'balanced' is a hold, not a stop: the same loops keep running. A grain
        giving way can knock a wall past 1% for a moment, and the label should not
        flicker for that, so it takes twice the band for two seconds to lose it. */
     SV.bad = within(2*SERVO.TOL) ? 0 : SV.bad + 1;
     if(SV.bad >= 2*SERVO.HOLD){ S.phase = 'balancing'; SV.ok = 0; }
+  }
+  /* The note quotes the wall table, and at the moment of declaring the table can
+     still trail: 18.08 / 18.08 / 17.89 on a bed that settled at 18.00 a second
+     later, which reads as a miss. So the note waits until the table is within
+     0.3% of σ₃, or three seconds, whichever comes first. */
+  if(SV.report && S.phase === 'balanced' && (shown(0.003) || ++SV.report > 180)){
+    SV.report = 0;
+    svReport(W, H, a);
   }
 }
 
@@ -1784,10 +1792,11 @@ function svReport(W, H, a){
   else {
     const weight = Wt/W/2;                            // the weight's share of the mean vertical stress
     t += ', ' + (100*off).toFixed(1) + '% from square' +
-         (weight > 0.25*S.sig3*1000 ? ' — the squarest this bed holds at σ₃ = ' + (+S.sig3).toFixed(1) +
-                                      ' kPa: its own weight presses the sides harder than the lid' : '');
+         (weight > 0.25*S.sig3*1000 ? ' — at σ₃ = ' + (+S.sig3).toFixed(1) + ' kPa the grains’ own weight' +
+                                      ' is large next to σ₃ and pulls the box out of square' : '');
     kind = 'warn';
   }
+  if(SV.squared === 'stopped'){ t += ' · squaring stopped at ' + SERVO.OVL_STOP + '% contact overlap'; kind = 'warn'; }
   if(SV.scale < 0.999){ t += ' · σ₃ capped at ' + f2(S.sig3*1000*SV.scale) + ' kPa by contact overlap — raise kₙ'; kind = 'warn'; }
   else if(S.overlapPct > SERVO.OVL_WARN){ t += ' · contacts overlap ' + S.overlapPct.toFixed(1) + '% of a grain — raise kₙ for stiffer grains'; kind = 'warn'; }
   toast(t + ' · holding', kind);
