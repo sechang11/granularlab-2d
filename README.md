@@ -499,6 +499,9 @@ target fill and says so in the corner. A box that already holds N is left exactl
 where you put it. The 12 m ceiling is a guard against nonsense, not a capacity
 limit — the largest N and largest grain the UI offers need 9.8 m.
 
+> Superseded: the servo described in this section was rebuilt — see
+> [Consolidation, rebuilt](#consolidation-rebuilt-walls-in-pairs-level-and-difference-squaring-passes).
+
 **⚖ Consolidate to σ₃** is a biaxial cell. The floor and the left wall are the
 frame and never move; the **lid** and the **right wall** are the platens, and each
 is driven inward until the normal *stress* on it reaches σ₃:
@@ -663,6 +666,9 @@ mode still converges: lid 17.81, side walls 18.49 and 18.50 kPa.
 
 ## Consolidation is about pressure
 
+> Superseded: the servo described in this section was rebuilt — see
+> [Consolidation, rebuilt](#consolidation-rebuilt-walls-in-pairs-level-and-difference-squaring-passes).
+
 The force option was built on a mistaken request and has been removed.
 **Consolidate now makes the pressure equal** on the left wall, the right wall and
 the lid, and there is no selector.
@@ -733,6 +739,114 @@ table shows.
   move no load, so the finishing test now uses translational energy only. The same
   spin will also keep the strict settle test from ever reporting settled at very
   high rolling resistance.
+
+## Consolidation, rebuilt: walls in pairs, level and difference, squaring passes
+
+Reported: the pressures converged to σ₃ on some attempts and not others, and the
+box was rarely square. Both were reproduced before anything was changed, by running
+the page's own script headless in Node (a stub DOM, the real physics, a seeded
+random generator) on 23 beds — 200 to 1200 grains, all four fill methods, grain
+friction 0.3 to 0.8, wide, tall and very tall boxes — at σ₃ from 5 to 50 kPa, many
+at once.
+
+### What was going wrong
+
+The old servo on 14 of those cases:
+
+- **σ₃ was not reached in 8 of 14.** The overlap back-off started at 4.5% of a grain,
+  and at 18 kPa the largest overlap in a bed is about 3 to 5.5%, depending on how its
+  force chains happen to fall. So the same settings capped one fill at 14.3 kPa and
+  let the next reach 18 — the "some attempts" in the report. σ₃ = 50 was capped at
+  18 and 29.
+- **Squaring gave up on 7 of the 9 beds that needed it.** Pushing one wall into a loose
+  bed builds passive earth pressure, which crossed the "bed pushed back" threshold.
+- **No box finished within 1% of square;** they ran 1.1% to 62% out. Even a squared
+  bed drifted during loading, because the loops for the lid and for the side walls
+  fought each other.
+
+### Measured: how a bed answers its walls
+
+Small wall steps on a bed held at 14 kPa, k_n = 2e6 N/m, averaged a second after
+each step:
+
+| strain step | 0.05% | 0.2% | 0.5% |
+|---|---|---|---|
+| both pairs in or out together: dp/dε_v | 0.37 k_n | 0.36 k_n | 0.37 k_n |
+| sides in and lid out, or back: dq/dε_d | 0.34 k_n | 0.22 k_n | 0.14 k_n |
+
+with p = (σ_x + σ_y)/2 and q = σ_x − σ_y. The pressure *level* and the pressure
+*difference* are separate responses, the second softening quickly with amplitude.
+
+### The new servo
+
+1. **Walls move in mirrored pairs.** Both side walls close or open together about
+   the middle of the box, and so do the lid and the floor. With the floor held still
+   the lid set the bed bouncing on the floor; the lid's pressure swung ±2 kPa about
+   σ₃, and six of the first twenty beds tried were never still enough to be
+   declared. Squeezed from both ends, the bed's bounce is twice as fast, beyond what
+   the servo's corrections excite, and it went away. The floor does end up below y = 0 when a wide bed is squared; positions
+   are only positions.
+2. **One loop for the level, one for the difference.** Both pairs close together to
+   set p and move against each other to set q, each with its measured stiffness.
+3. **Squaring under a light lid.** The lid rides the bed at 5% of σ₃ while the side
+   walls walk in, lifting it, or out, letting it slump — no lifted lid, no heap at
+   the wall, and nothing to give up on.
+4. **Aim past square by the spring-back.** A bed only reshapes at its yield point,
+   with the sides pressing far harder than the lid, and when that difference is let
+   go the box springs part of the way back — measured, ln(W/H) moves by q/(0.08 to
+   0.18 k_n), 6–11% at 18 kPa. Squaring therefore steers s = ln(W/H) + q/(0.10 k_n) to
+   zero: the shape the box will have once q is gone.
+5. **Squaring passes — the jitter.** The spring-back varies by about ±25% from bed to
+   bed, so the first release lands within about 4% of square, either side. A pass
+   pushes past square and lets go. The asymmetry that makes this work was measured,
+   not assumed: pushed the same way the box last sprang, a bed keeps 0.6–1.0 of the
+   push; pushed against it, the push first retraces that spring and
+   only then reshapes anything, so it has to be the error plus the whole last
+   spring-back. Up to five passes, stopping when two in a row fail to beat the best
+   shape so far.
+6. **Declared** when the left wall, the right wall and the lid have each been within
+   1% of σ₃ for a second — on the servo's own quarter-second average *and* on the
+   half-second average the wall table shows, so the note never announces a number the
+   table contradicts — with the bed still. Holding, it takes 2% for two seconds to
+   lose the label, so a grain giving way does not make it flicker.
+7. **Overlap no longer caps σ₃** unless contacts would pass 15% of a grain, where a
+   soft-contact model has stopped describing grains; past 8% the note warns. The
+   worst seen at 50 kPa was 8.8%.
+8. **A box that leaves the view is re-framed** with 15% to spare. Inside the view it
+   stays put, as everywhere else.
+
+### Results, same harness, the code as shipped
+
+| | old servo (14 cases) | new servo (28 cases) |
+|---|---|---|
+| left, right and lid reach σ₃ | 6 of 14 within 2% | **28 of 28**, within 0.3% |
+| square within 0.5% | 0 of 14 | **26 of 28** — all 23 at 18 kPa, and 12, 30 and 50 kPa |
+| lost the hold afterwards | — | 0 |
+| simulated time to declared, 18 kPa | 3–18 s | 7–25 s, median 12.5 s |
+
+Same beds, σ₃ = 18 kPa:
+
+| bed | old: box, pressures | new: box, pressures |
+|---|---|---|
+| 400 grains | 64.1 × 50.3 cm, 14.3 kPa (capped) | 56.4 × 56.3 cm, 18.00 kPa |
+| 400 grains, μ 0.8 | 78.5 × 42.1 cm, 16.0 kPa (capped) | 57.8 × 57.8 cm, 18.00 kPa |
+| 200 grains | 48.1 × 34.2 cm, 18.1 kPa | 40.5 × 40.5 cm, 18.00 kPa |
+| 800 grains | 81.3 × 79.0 cm, 17.0 kPa (capped) | 79.9 × 80.1 cm, 18.00 kPa |
+| 1200 grains | 115.8 × 84.5 cm, 16.1 kPa (capped) | 99.3 × 98.9 cm, 18.03 / 18.03 / 17.96 kPa |
+| 400 grains in a 40 × 120 cm box | — | 56.4 × 56.2 cm, 18.00 kPa |
+
+The floor read lid + W / (x₂ − x₁) to the hundredth of a kPa in every run.
+Consolidating again from a loaded bed works too: on one bed, 18 kPa then (without
+pressing) 30, then pressed at 10 and at 18, each came out square to 0.24% or better.
+
+### Where square is out of reach
+
+The grains' own weight presses the side walls harder than the lid. When σ₃ is
+small next to that weight, a square box cannot carry equal pressure on its sides and
+lid, and the walls open out until it can. On 400 grains: square to 0.1% at 12 kPa,
+2.1% out at 8 kPa after three passes, and 69.4 × 47.6 cm at 5 kPa, where no pass is
+attempted because it would need a push of more than 35%. The pressures still converge
+— 5.02 / 5.02 / 4.99 kPa — and the note says why the box is wide.
 
 ## Records
 

@@ -432,7 +432,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
       </div>
       <div class="btns">
         <button id="bBalance" type="button"
-          title="Square the loose bed with the right wall, then lower the lid and drive the lid and both side walls to the same pressure, σ₃. Pressure = force ÷ the length of that wall.">⚖ Consolidate to σ₃</button>
+          title="Drive the left wall, the right wall and the lid to the same pressure, σ₃, squaring the box on the way. The walls move in mirrored pairs. Pressure = force ÷ the length of that wall.">⚖ Consolidate to σ₃</button>
       </div>
       <div class="btns">
         <button id="bRecord" type="button"
@@ -624,46 +624,59 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
     <h3 id="g-balance">Consolidating to &sigma;<sub>3</sub></h3>
     <dl>
-      <dt>&#9878; Consolidate</dt><dd>Two steps behind one button. First the bed is squared while
-        it is still loose; then the lid comes down, and the lid and both side walls are driven to
-        the same <b>pressure</b>, &sigma;<sub>3</sub>. The floor and the left wall never move; the
-        lid and the right wall do the work.</dd>
+      <dt>&#9878; Consolidate</dt><dd>Brings the left wall, the right wall and the lid to the same
+        <b>pressure</b>, &sigma;<sub>3</sub>, and the box as close to square as the bed will hold.
+        All four walls move: the two side walls as a mirrored pair about the middle of the box,
+        and the lid and the floor as another.</dd>
       <dt>pressure</dt><dd>Force divided by the length of the wall it acts on. The side walls are
         as long as the box is <i>tall</i> (y<sub>2</sub> &minus; y<sub>1</sub>); the lid and the
         floor as long as it is <i>wide</i> (x<sub>2</sub> &minus; x<sub>1</sub>). With lengths in
         centimetres that is F / (L/100), in pascals. The disks are unit thickness, so a wall of
         length L metres presents L m&sup2; of face and this is a genuine pressure.</dd>
-      <dt>1 &middot; squaring</dt><dd>Equal pressure gives equal <i>force</i> only when the walls
-        are the same length &mdash; a square box. So before any load goes on, with the lid lifted
-        out of the way, the right wall moves to the width at which the grains would stand as tall
-        as they are wide, and they rise or slump to fill it. Nothing is being pressed yet, so this
-        cannot compromise the pressures. If the bed pushes back instead of rising &mdash; the side
-        pressure climbs past what the grains' own weight explains &mdash; squaring stops and the
-        shape it has is consolidated as it is. It is skipped when the box is already within 2% of
-        square.</dd>
-      <dt>2 &middot; consolidating</dt><dd>The lid is lowered to the surface and held at
-        &sigma;<sub>3</sub>. The side walls head for &sigma;<sub>3</sub> too; once the lid is loaded
-        they stop aiming at a number and follow the <i>lid's measured pressure</i>, so they can only
-        finish where the lid is. Done when the lid is within 2% of &sigma;<sub>3</sub>, the side
-        walls within 0.5% of the lid, and the packing is quasi-static.</dd>
-      <dt>the left wall</dt><dd>Never driven. With no wall friction (&mu;<sub>w</sub> = 0, the
-        default) <b>&Sigma;</b> horizontal forces = 0 gives F<sub>x1</sub> = F<sub>x2</sub>, and
-        the two side walls are the same length, so the left wall carries the right wall's
-        pressure exactly. With wall friction the floor and the lid can hold part of a sideways
-        difference, so the left wall can legitimately read lower than the right. The servo then
-        matches the lid to the <i>average</i> of the two side walls and does not force the left
-        one.</dd>
+      <dt>why pairs</dt><dd>A pair squeezes the bed from both ends at once. One wall pushing against
+        a fixed one also shoves the whole bed: with the floor held still, the lid set the bed
+        bouncing on the floor, its pressure swinging &plusmn;2 kPa either side of
+        &sigma;<sub>3</sub>, and the bed never went still.</dd>
+      <dt>level and difference</dt><dd>The walls are not steered one at a time. Closing both pairs
+        together raises the pressure <i>level</i>; moving them against each other &mdash; sides in,
+        lid out &mdash; changes the <i>difference</i> between the side walls and the lid. The bed
+        answers those two separately, so each has its own loop and neither fights the other.</dd>
+      <dt>1 &middot; touch</dt><dd>The lid comes down onto the bed.</dd>
+      <dt>2 &middot; squaring</dt><dd>The lid rides the bed at a light load, 5% of
+        &sigma;<sub>3</sub>, while the side walls walk in, lifting the bed, or out, letting it
+        slump. A bed only changes shape at its yield point, and it springs part of the way back
+        once that push is let go, so squaring deliberately aims past square by the spring-back it
+        expects.</dd>
+      <dt>3 &middot; loading</dt><dd>Both pairs close until the pressure level reaches
+        &sigma;<sub>3</sub>.</dd>
+      <dt>4 &middot; equalizing</dt><dd>The difference is let go: left, right and lid all to
+        &sigma;<sub>3</sub>. This is where the box springs back.</dd>
+      <dt>5 &middot; squaring passes</dt><dd>If the box came out more than 0.4% from square, the
+        walls push past square, let go and measure again &mdash; up to five times, and not after
+        two passes in a row that did not help. Each pass learns how much of a push this bed keeps: a push the same way
+        the bed last sprang keeps most of itself, a push against it first has to undo that
+        spring.</dd>
+      <dt>6 &middot; holding</dt><dd>Declared once the left wall, the right wall and the lid have
+        each been within 1% of &sigma;<sub>3</sub> for a second and the bed is still. It is a hold,
+        not a stop: the bed goes on relaxing, so the walls keep making micrometre corrections and
+        the pressures stay at &sigma;<sub>3</sub> while you read and record them. Moving a wall by
+        hand releases it; so do Fill, Tap, Unload and Clear.</dd>
+      <dt>when it will not square</dt><dd>The grains' own weight presses the side walls harder than
+        the lid. When &sigma;<sub>3</sub> is small next to that weight, a square box cannot carry
+        equal pressure on its sides and lid, and the walls open out until it can; the note then
+        says the box is the squarest this bed holds at that &sigma;<sub>3</sub>. Raising
+        &sigma;<sub>3</sub>, or fewer grains, brings it back to square.</dd>
       <dt>the floor</dt><dd>The one wall that cannot match. <b>&Sigma;</b> vertical forces = 0
         gives F<sub>y1</sub> = F<sub>y2</sub> + W, so the floor's pressure is the lid's plus the
         grains' weight spread over the box width &mdash; gravity, not the controller.</dd>
-      <dt>it keeps holding</dt><dd>Consolidated is a hold, not a stop. The bed goes on relaxing
-        after the walls come to rest, so the servo keeps making tenth-of-a-millimetre corrections
-        and the pressures stay equal while you read and record them. Moving a wall by hand
-        releases it; so do Fill, Tap, Unload and Clear.</dd>
-      <dt>when &sigma;<sub>3</sub> is out of reach</dt><dd>Pressure costs contact overlap. If
-        reaching &sigma;<sub>3</sub> would push overlap past 4.5% of a grain diameter, the load
-        backs off until it does not &mdash; the pressures are still made equal &mdash; and the note
-        says what they reached. Raise k<sub>n</sub> to reach the full &sigma;<sub>3</sub>.</dd>
+      <dt>the side walls</dt><dd>With no wall friction (&mu;<sub>w</sub> = 0, the default)
+        <b>&Sigma;</b> horizontal forces = 0 makes the left and right walls carry the same load.
+        With wall friction the floor and the lid can hold part of a sideways difference, and the
+        servo drives the average of the two side walls to &sigma;<sub>3</sub>.</dd>
+      <dt>contact overlap</dt><dd>Pressure costs overlap. &sigma;<sub>3</sub> is always reached
+        unless grains would overlap by more than 15% of a diameter, where a soft-contact model is
+        no longer describing grains; then the load backs off and the note says what it reached. Past
+        8% the note warns. Raise k<sub>n</sub> for stiffer grains.</dd>
       <dt>&sigma;<sub>3</sub> (kPa)</dt><dd>18 kPa is a typical laboratory confining stress and the
         default.</dd>
       <dt>reading the result</dt><dd>The <b>&sigma; kPa</b> column of the wall table is the check;
@@ -875,7 +888,7 @@ canvas.chart{width:100%;height:auto;display:block;background:#111110;
 
 /* Declared up here because the feedback context reads it, and a note whose
    build is unknown is a note you cannot act on. */
-const BUILD = '2026-09-14c';
+const BUILD = '2026-09-16a';
 
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1465,90 +1478,143 @@ function growTick(dtFrame){
 }
 
 /* ------------------------------------------------------ consolidation ----
-   A biaxial cell. The floor and the left wall are the frame and never move; the
-   LID and the RIGHT wall are the platens, and each is driven until the normal
-   stress on it reaches σ₃.
+   A biaxial cell, driven to one pressure on three walls.
 
-       σ_t = F_t / L_t        L_t = the box width,  the lid's length
-       σ_r = F_r / L_r        L_r = the box height, the right wall's length
+       σ = F / L      L = y₂ − y₁ for the two side walls,  x₂ − x₁ for the lid
 
-   In 2D the disks are unit thickness, so a wall of length L metres presents L m²
-   of face and F/L is a genuine pressure.
+   Consolidate brings the left wall, the right wall and the lid to the same
+   pressure, σ₃, and the box as close to square as the bed will hold. The floor is
+   the one wall that cannot match: it carries the lid's load plus the grains'
+   weight W, so σ_floor = σ_lid + W / (x₂ − x₁).
 
-   Two platens are enough for all four walls, because statics fixes the rest:
+   THE WALLS MOVE IN MIRRORED PAIRS. The two side walls close in or open out
+   together about the middle of the box, and the lid and the floor do the same.
+   A pair squeezes the bed from both ends at once, where one wall pushing against
+   a fixed one also shoves the whole bed along. Measured with the floor fixed: the
+   lid set the bed bouncing on the floor, the lid's pressure swung ±2 kPa about σ₃,
+   and six of the first twenty beds tried never went still enough to be declared.
+   Squeezed from both ends, the bed's bounce is twice as fast — beyond what these
+   corrections excite — and it went away.
 
-     • F_x1 = F_x2 (Σ horizontal = 0), and the two side walls are the same length,
-       so σ_x1 = σ_x2 as well. The left wall follows the right one exactly, at no
-       cost — which is why driving the right one is driving both.
-     • F_y1 = F_y2 + W (Σ vertical = 0). Floor and lid are also the same length, so
-       σ_y1 = σ_t + W/L_t: the floor reads higher than the lid by the weight of the
-       grains spread over the width of the box. That is the one wall that cannot
-       be driven to σ₃, and the reason is gravity, not the controller.
+   PRESSURE LEVEL AND PRESSURE DIFFERENCE, NOT ONE LOOP PER WALL. Measured with
+   small wall steps on a bed held at 14 kPa, k_n = 2e6 N/m:
+       both pairs in together        p = (σ_x + σ_y)/2 rises 0.37 k_n per unit strain
+       side walls in, lid out        q =  σ_x − σ_y    rises 0.34 k_n at 0.05% strain,
+                                                       0.22 k_n at 0.2%, 0.14 k_n at 0.5%
+   σ_x is the mean of the two side walls, σ_y the lid. The bed answers the level
+   and the difference separately, so each gets its own loop: both pairs close
+   together to set p, and move against each other to set q. The loops this
+   replaces moved the right wall on the side pressure and the lid on the lid
+   pressure as if the two were unrelated, so every step of one disturbed the
+   other, and q could only be made small by letting the box drift out of shape.
 
-   Stress, not force: equal force on walls of different lengths is not equal
-   pressure, and the box these servos find is generally not square. */
-const BAL_GAIN = 0.50;         // under-relaxation; 1.0 would be a dead-beat step
-const BAL_TOL  = 0.03;         // approach: close enough to start matching
-const BAL_MAG  = 0.02;         // the lid holds within 2% of its target force
-const BAL_EQ   = 0.005;        // the side walls' pressure within 0.5% of the lid's
-const BAL_HOLD = 20;           // frames the match must hold, either way, before the label changes
-const BAL_OVL  = 4.5;          // % of a grain: past this the load backs off, it does not stop
-let balOk = 0, balBad = 0, balScale = 1, balOwner = null;
+   SQUARING, AND WHY THE BOX SPRINGS BACK. A wide bed becomes square by being
+   sheared: the side walls push in while the lid gives way. A granular bed only
+   reshapes at its yield point, with the sides pressing far harder than the lid,
+   and once that difference is let go to reach equal pressure the box springs part
+   of the way back. Measured over whole releases, ln(W/H) moves by q / (0.08 to
+   0.18 k_n): several percent at σ₃ = 18 kPa. So squaring aims past square, at the
+   shape that will spring back to it,
+       s = ln(W/H) + q / (0.10 k_n)  →  0,
+   and what is left afterwards comes out in short passes: push past square, let
+   go, measure, and learn from each pass how much of a push this bed keeps. A push
+   the same way the bed last sprang keeps most of itself; a push against it first
+   has to undo that spring.
 
-/* isQuiet() is a max-over-every-grain test — exactly right for "has deposition
-   finished", far too strict here. Measured on a converged bed: one rattler
-   spinning in a pore ran at 1.4× that bar while the packing's entire kinetic
-   energy was 5.5e-6 J under a 6.5 kN load, and the servo would have waited on it
-   forever. What a servo needs to know is whether the PACKING is quasi-static, so
-   compare its kinetic energy against the work scale of the load it carries:
-   moving one grain diameter against the confining force. */
-/* TRANSLATIONAL energy only. Measured on a high-friction bed (mu = 1, rolling
-   resistance 0.2) with the pressures matched and both platens frozen to a
-   hundredth of a millimetre: total kinetic energy sat at 0.0226 J against a bar
-   of 0.0030 J indefinitely, and 99.8% of it was rotation of load-bearing grains
-   turning in place at a few rad/s. Translational energy was 5.4e-5 J. A grain
-   spinning where it sits moves no load, so it must not hold the result hostage;
-   a grain that is actually still moving does, and still fails this test. */
+   The stages behind the one button:
+     touch       the lid comes down onto the bed
+     squaring    the lid rides the bed at a light load while the side walls walk
+                 in, lifting it, or out, letting it slump, until s = 0
+     loading     both pairs close until p = σ₃, still steering s
+     equalizing  q is let go: left, right and lid all to σ₃
+     passes      more than 0.4% out of square: push, let go, measure — at most
+                 five, and none after two in a row that did not help
+     holding     declared when left, right and lid have each been within 1% of σ₃
+                 for a second and the bed is still; the corrections carry on */
+const SERVO = {
+  LIGHT: 0.05,      // lid load while squaring, a fraction of σ₃ (at least 0.5 kPa)
+  K: 0.36,          // dp/dε_v, in units of k_n
+  GQ: 0.25,         // dq/dε_d, in units of k_n, for the loop gain
+  G_BACK: 0.10,     // spring-back modulus, in units of k_n
+  GAIN: 0.15,       // share of the estimated error corrected per frame
+  SQ_TOL: 0.004,    // |s| that ends squaring
+  SQ_RATE: 0.12,    // side-wall strain rate while squaring, per second
+  LOAD_RATE: 0.08,  // strain-rate cap while loading, per second
+  HOLD_RATE: 0.03,  // strain-rate cap once equalizing, per second (4× while q is large)
+  PASS_RATE: 0.04,  // strain rate of a pass as it nears the end of its push, per second
+  SQUARE: 0.004,    // |ln(W/H)| that counts as square
+  PASSES: 5,
+  PUSH_MAX: 0.35,   // largest push a pass may make, as strain; further than that, no pass
+  TOL: 0.01,        // left, right and lid each within 1% of σ₃ …
+  HOLD: 60,         // … for this many frames
+  OVL_STOP: 8,      // % of a grain: squaring gives up past this overlap
+  OVL_WARN: 8,      // % of a grain: the result says so past this
+  OVL_MAX: 15,      // % of a grain: the load backs off past this
+};
+const SV = {};      // the servo's state, reset by balReset()
+
+function balReset(){
+  Object.assign(SV, {stage:'', f:0, ema:null, ok:0, bad:0, own:null, squared:'',
+    passes:0, declared:false, scale:1, eq0:null, dir:0, push0:0, pushAmt:0, follow:false,
+    lastRel:0, relMag:0, keep:1.0, best:Infinity, stalled:0});
+}
+balReset();
+
+/* The servo owns all four walls while it runs and knows where it last put them.
+   A wall anywhere else was dragged, typed or arrow-keyed, and a hold that quietly
+   fought you for it would make the panel feel broken. */
+function svOwn(){ const t = S.boxT; SV.own = {x1:t.x1, x2:t.x2, y1:t.y1, y2:t.y2}; }
+function svReleased(){
+  const t = S.boxT, o = SV.own;
+  if(!o){ svOwn(); return false; }
+  const tol = 1.5*WALL_GRID;
+  if(Math.abs(t.x1 - o.x1) > tol || Math.abs(t.x2 - o.x2) > tol ||
+     Math.abs(t.y1 - o.y1) > tol || Math.abs(t.y2 - o.y2) > tol){
+    S.phase = 'settling';
+    toast('Consolidation released — a wall was moved by hand', 'warn');
+    return true;
+  }
+  return false;
+}
+/* ux shortens the box's width and uy its height, in metres, each split evenly
+   between the two walls of its pair. Positions are not snapped to WALL_GRID: the
+   servo's corrections are micrometres, and rounding them away is what froze an
+   earlier version of this servo solid. */
+function svMove(ux, uy, lidOnly){
+  const t = S.boxT, g = BMIN();
+  const fy = lidOnly ? 0 : 0.5;
+  let x1 = t.x1 + 0.5*ux, x2 = t.x2 - 0.5*ux;
+  let y1 = t.y1 + fy*uy,  y2 = t.y2 - (1 - fy)*uy;
+  if(x2 - x1 < g){ const c = 0.5*(x1 + x2); x1 = c - g/2; x2 = c + g/2; }
+  if(y2 - y1 < g){ const c = 0.5*(y1 + y2); y1 = c - g/2; y2 = c + g/2; }
+  t.x1 = x1; t.x2 = x2; t.y1 = y1; t.y2 = y2;
+  syncWallUI();
+  svOwn();
+}
+/* Raw pressures drive the walls; a quarter-second average decides when a stage
+   is done. Filtering the loop's own input overshot 18 kPa to 46 when an earlier
+   servo tried it. */
+function svMeasure(){
+  const W = Math.max(1e-9, BW()), H = Math.max(1e-9, BH()), F = S.wall;
+  const m = {L: F.L/H, R: F.R/H, T: F.T/W, x: 0.5*(F.L + F.R)/H, y: F.T/W};
+  if(!SV.ema) SV.ema = Object.assign({}, m);
+  else for(const k in m) SV.ema[k] += (m[k] - SV.ema[k])/15;
+  return {W, H, m, e: SV.ema};
+}
+/* TRANSLATIONAL energy only, against the work of moving the confining load one
+   grain diameter. On a high-friction bed 99.8% of the kinetic energy was grains
+   spinning in place, which moves no load and must not hold the result hostage. */
 function translationalKE(){
   let e = 0;
   for(const p of S.P) e += 0.5*p.m*(p.vx*p.vx + p.vy*p.vy);
   return e;
 }
-const balQuiet = F => translationalKE() < 1e-5 * Math.max(F, 1) * S.d;
-
-/* Every wall position lands on WALL_GRID, 0.1 mm, because that is the finest
-   thing the readout can express. The servo's steps can be far smaller than that,
-   so snapWall rounded them to zero and the box never moved at all. The residual
-   the grid swallows is carried to the next tick, so sub-grid steps accumulate
-   until they cross it. */
-const balRem = {x2:0, y2:0};
-
-/* The stress a single frame reports is noisy — measured on a converged bed,
-   σ on the right wall scattered ±17% frame to frame while the lid, three times
-   as long and carrying three times as many contacts, scattered a few percent.
-   A short wall simply has fewer force chains landing on it, and σ_x1 and σ_x2
-   are anti-correlated within a frame because F_x1 = F_x2 holds on average, not
-   instantaneously. Servoing on that chases noise and never converges, so both
-   the control and the convergence test run on a ~0.25 s exponential average. */
-const BAL_AVG = 1/16;
-let fBarT = 0, fBarS = 0, fBarSeeded = false;   // averaged lid force and mean side-wall force
-function balReset(){
-  balRem.x2 = balRem.y2 = 0;
-  fBarT = fBarS = 0; fBarSeeded = false;
-  balOk = 0; balBad = 0; balScale = 1; balOwner = null;
-}
-function balNudge(dx, dy){
-  const t = S.boxT, g = BMIN();
-  const want = {x2: t.x2 - dx + balRem.x2, y2: t.y2 - dy + balRem.y2};
-  want.x2 = Math.max(want.x2, t.x1 + g);      // the same guard setWall applies
-  want.y2 = Math.max(want.y2, t.y1 + g);
-  for(const k of ['x2','y2']){
-    t[k] = snapWall(want[k]);
-    /* if a clamp moved the wall somewhere else entirely, do not hoard the
-       difference — only the grid's rounding belongs in the residual */
-    balRem[k] = clamp(want[k] - t[k], -WALL_GRID, WALL_GRID);
-  }
-  syncWallUI();                  // once, not once per wall
+const svQuiet  = s3 => translationalKE() < 1e-5*Math.max(1, s3*0.5*(BW() + BH()))*S.d;
+const svLight  = () => Math.min(S.sig3*1000, Math.max(500, SERVO.LIGHT*S.sig3*1000));
+const svRelaxed = (W, H, q) => Math.log(W/H) + q/(SERVO.G_BACK*S.kn);
+function svStage(st){
+  SV.stage = st; SV.f = 0;
+  if(st === 'equalizing') SV.eq0 = {a: Math.log(BW()/BH()), q: SV.ema ? SV.ema.x - SV.ema.y : 0};
 }
 
 const kPa = pa => pa/1000;
@@ -1560,191 +1626,171 @@ function wallStress(F){
   return {x1:F.L/Lv, x2:F.R/Lv, y1:F.B/Lh, y2:F.T/Lh};
 }
 
-/* Consolidation is one requirement and one preference.
-
-     REQUIRED   the same PRESSURE on the left wall, the right wall and the lid.
-                σ = F / L, where L is the length of that wall: the box height for
-                the two side walls, the box width for the lid.
-     PREFERRED  the same FORCE as well. F = σ·L, so that only happens when the
-                walls are the same length — a square box.
-
-   So the bed is squared first, while it is loose and nothing is loaded, by means
-   that cannot touch the pressures. If it will not square without being forced,
-   it keeps the shape it has and the pressures are still made equal. The floor is
-   the one wall that can never match: statics puts the grains' weight on it. */
-const BAL_SQ_TOL  = 0.02;   // within 2% of square counts as square
-const BAL_SQ_RATE = 0.03;   // grain diameters of right-wall travel per frame while squaring
-const balShape = {side:0, result:'', settle:0};
-
-/* The servo owns the lid and the right wall while it runs and knows where it last
-   put them. A wall anywhere else means someone dragged, typed or arrow-keyed it,
-   and a hold that quietly fought them for it would make the panel feel broken. */
-function balOwn(){ const t = S.boxT; balOwner = {x1:t.x1, x2:t.x2, y1:t.y1, y2:t.y2}; }
-function balReleased(){
-  const t = S.boxT;
-  if(!balOwner){ balOwn(); return false; }
-  if(t.x1 !== balOwner.x1 || t.y1 !== balOwner.y1 ||
-     Math.abs(t.x2 - balOwner.x2) > 1.5*WALL_GRID ||
-     Math.abs(t.y2 - balOwner.y2) > 1.5*WALL_GRID){
-    S.phase = 'settling';
-    toast('Consolidation released — a wall was moved by hand', 'warn');
-    return true;
-  }
-  return false;
+/* The walls travel further than they ever used to — a wide bed's floor drops as
+   its lid rises — so a box that leaves the view is re-framed, with room to spare
+   so the view does not creep outward frame by frame. Inside the view it stays
+   put, as it does everywhere else. */
+function keepBoxInView(){
+  if(!canvasHasArea()) return;
+  const b = S.boxT, m = 4;
+  if(SX(b.x1) < m || SX(b.x2) > VW - m || SY(b.y2) < m || SY(b.y1) > VH - m) fitView(0.15);
 }
 
-/* Step 1 decides the square. The grains' own area divided by the packing fraction
-   is the area the bed occupies; a square of that area is the width at which the
-   grains stand as tall as they are wide. */
 function shapeStart(){
-  let area = 0;
-  for(const p of S.P) area += Math.PI*p.r*p.r;
-  const phi = (S.meas.phi > 0.5 && S.meas.phi < 0.95) ? S.meas.phi : 0.84;
-  balShape.side = Math.sqrt(area/phi);
-  balShape.result = ''; balShape.settle = 0;
-  if(Math.abs(BW() - balShape.side) <= BAL_SQ_TOL*balShape.side){
-    balShape.result = 'already';
-    lowerLidAndLoad();
-    return;
-  }
-  /* The lid goes up out of the way first, clear of where a square bed's top will
-     be, so the grains have somewhere to rise into. Moving away from the grains is
-     always safe, so it may jump. */
-  const need = S.box.y1 + 1.3*balShape.side + 2*S.d;
-  if(S.boxT.y2 < need) setWallNow('y2', need);
+  let top = S.box.y1;
+  for(const p of S.P) if(p.y + p.r > top) top = p.y + p.r;
+  /* nothing is above the highest grain, so the lid may jump to just over it */
+  if(S.boxT.y2 > top + 0.2*S.d) setWallNow('y2', top + 0.1*S.d);
+  SV.ema = null; SV.own = null;
+  svStage('touch');
   S.phase = 'shaping';
-  balOwner = null;
   resetWallAvg();
 }
 
 function shapeTick(){
   if(!S.P.length){ S.phase = 'idle'; return; }
-  if(balReleased()) return;
-  const target = S.box.x1 + balShape.side;
-  const err = S.boxT.x2 - target;              // > 0: still too wide, move in
-
-  /* "Don't force it", made measurable. Pushing a loose bed narrower should LIFT
-     it: the side walls then carry roughly what the grains' own weight presses
-     sideways, a few kPa. If the side pressure over the height actually in contact
-     climbs past four times that hydrostatic estimate, the wall is crushing the bed
-     rather than raising it — so squaring stops and the shape it has is kept. The
-     overlap check catches the same thing from the other side. */
-  if(err > 0){
-    const hBed = Math.max(S.d, S.meas.h - S.box.y1);
-    const pBed = 0.5*(S.wall.L + S.wall.R)/hBed;
-    const rhoB = (S.meas.phi > 0.3 ? S.meas.phi : 0.84)*S.rho;
-    const pLift = Math.max(2*rhoB*S.gActive*hBed, 0.1*S.sig3*1000);
-    if(pBed > pLift || S.overlapPct > BAL_OVL - 1){
-      balShape.result = 'stopped';
-      toast('Squaring stopped at ' + (BW()*100).toFixed(1) + ' cm wide — the bed pushed back ' +
-            'instead of rising. Consolidating the shape it has.', 'warn');
-      lowerLidAndLoad();
+  if(svReleased()) return;
+  SV.f++;
+  const {W, H, m, e} = svMeasure();
+  const kn = S.kn, light = svLight(), dtF = 1/60;
+  if(SV.stage === 'touch'){
+    if(e.y >= 0.5*light && SV.f > 5){
+      const done = Math.abs(svRelaxed(W, H, e.x - e.y)) < 3*SERVO.SQ_TOL;
+      if(done){ SV.squared = 'already'; svStage('loading'); S.phase = 'balancing'; }
+      else svStage('squaring');
       return;
     }
-  }
-  if(Math.abs(err) > 0.25*BAL_SQ_TOL*balShape.side){
-    balNudge(Math.sign(err)*Math.min(Math.abs(err), BAL_SQ_RATE*S.d), 0);
-    balOwn();
-    balShape.settle = 0;
+    /* creep down until the lid carries the light load; the floor stays put */
+    const uy = m.y < 0.2*light ? 0.01*S.d : (light - m.y)/(0.45*kn)*H;
+    svMove(0, clamp(uy, -0.01*S.d, 0.01*S.d), true);
     return;
   }
-  /* there — let the heap come to rest before the lid goes on */
-  if(++balShape.settle >= 40){
-    if(!balShape.result) balShape.result = 'square';
-    lowerLidAndLoad();
-  }
-}
-
-/* Step 2 begins by bringing the lid down to the surface. Headroom is not something
-   to creep across at a servo's pace, and nothing is above the highest grain, so
-   this one may jump too. */
-function lowerLidAndLoad(){
-  let top = S.box.y1;
-  for(const p of S.P) if(p.y + p.r > top) top = p.y + p.r;
-  if(S.boxT.y2 > top + S.d) setWallNow('y2', top + 0.5*S.d);
-  const keep = balShape.result;
-  balReset();
-  balShape.result = keep;
-  S.phase = 'balancing';
-  resetWallAvg();
+  const s = svRelaxed(W, H, e.x - e.y);
+  if(Math.abs(s) < SERVO.SQ_TOL){ SV.squared = 'square'; svStage('loading'); S.phase = 'balancing'; return; }
+  if(S.overlapPct > SERVO.OVL_STOP){ SV.squared = 'stopped'; svStage('loading'); S.phase = 'balancing'; return; }
+  /* the lid pair holds the light load; the side pair walks toward s = 0, waiting
+     while the lid is too loaded to keep up, or, walking out, has lost the bed */
+  const ey = clamp((light - m.y)/(0.45*kn), -0.5*dtF, 0.5*dtF);
+  let lag = clamp(2 - e.y/(4*light), 0, 1);
+  if(s < 0) lag = Math.min(lag, clamp(0.1 + e.y/light, 0, 1));
+  const ex = clamp(0.1*s, -SERVO.SQ_RATE*dtF, SERVO.SQ_RATE*dtF)*lag;
+  svMove(ex*W, ey*H);
+  keepBoxInView();
 }
 
 function balanceTick(){
   if(!S.P.length){ S.phase = 'idle'; return; }
-  if(balReleased()) return;
+  if(svReleased()) return;
+  SV.f++;
+  const {W, H, m, e} = svMeasure();
+  const kn = S.kn, dtF = 1/60;
+  /* the one overlap guard left: past this a soft-contact model is not modelling
+     grains any more, so the load backs off */
+  if(S.overlapPct > SERVO.OVL_MAX) SV.scale = Math.max(0.2, SV.scale*0.995);
+  else if(S.overlapPct < SERVO.OVL_MAX - 2 && SV.scale < 1) SV.scale = Math.min(1, SV.scale*1.002);
+  const s3 = S.sig3*1000*SV.scale;
+  const a = Math.log(W/H);
+  const p = 0.5*(m.x + m.y), q = m.x - m.y;
 
-  const W = Math.max(1e-9, BW()), H = Math.max(1e-9, BH());
-  const sig3 = S.sig3*1000;                        // kPa → Pa
-
-  /* Overlap is traded against MAGNITUDE, never against equality. Pressure costs
-     contact overlap, and a guard that simply stopped left the walls unequal
-     mid-way. Now the load backs off until overlap is under the limit and the
-     pressures are made equal at the most the contacts allow. The 1% gap between
-     backing off and recovering keeps it from hunting on the threshold. */
-  if(S.overlapPct > BAL_OVL) balScale = Math.max(0.2, balScale*0.995);
-  else if(S.overlapPct < BAL_OVL - 1 && balScale < 1) balScale = Math.min(1, balScale*1.002);
-
-  /* The side force is the MEAN of the left and right walls. Each alone sloshes:
-     on a held bed they wobbled ±1.2% frame to frame in opposite directions
-     (correlation −0.93) while their mean moved 0.25%. Only the right wall moves,
-     and it moves both. */
-  const Ft = S.wall.T;
-  const Fs = 0.5*(S.wall.L + S.wall.R);
-  if(!fBarSeeded){ fBarT = Ft; fBarS = Fs; fBarSeeded = true; }
-  else { fBarT += (Ft - fBarT)*BAL_AVG; fBarS += (Fs - fBarS)*BAL_AVG; }
-
-  /* The lid is held at σ₃: its force target is σ₃ times its own length, W.
-     On the way in the side walls head for σ₃ as well. Once the lid is loaded
-     they stop aiming at a number and follow the LID'S MEASURED PRESSURE: two walls
-     each allowed to land within a band of one target can land on opposite edges
-     of it, whereas a wall that follows the other can only finish where it is. */
-  const tgtT = sig3*W*balScale;
-  const lidLoaded = Math.abs(tgtT - fBarT) < BAL_TOL*tgtT;
-  const tgtS = (lidLoaded ? fBarT/W : sig3*balScale) * H;   // pressure × the side walls' length
-  const sBand = lidLoaded ? BAL_EQ : BAL_TOL;
-  const et = tgtT - Ft, es = tgtS - Fs;
-
-  /* dF/dx for a platen: the bulk modulus of the bed, a fraction of k_n, times the
-     strain, times the wall's own length. An earlier version counted wall contacts
-     as springs in parallel and was 250× too stiff. */
-  const kt = 0.3*S.kn*W/H;       // lid travel strains the height; the lid is W long
-  const kr = 0.3*S.kn*H/W;       // right-wall travel strains the width; it is H long
-  const rate = (F, tgt) => {
-    const slack = 1 - clamp(Math.abs(F)/Math.max(tgt, 1e-9), 0, 1);
-    return (0.01 + 0.14*slack*slack) * S.d;
-  };
-  /* Dead-bands on the averages, steps on the raw force: filtering the controller's
-     input overshot 18 kPa to 46 when that was tried. */
-  const inT = Math.abs(tgtT - fBarT) < BAL_MAG*tgtT;
-  const inS = Math.abs(tgtS - fBarS) < sBand*Math.max(tgtS, 1e-9);
-  const dy = inT ? 0 : clamp(BAL_GAIN*et/kt, -rate(Ft, tgtT), rate(Ft, tgtT));
-  const dx = inS ? 0 : clamp(BAL_GAIN*es/kr, -rate(Fs, tgtS), rate(Fs, tgtS));
-  if(dx || dy){ balNudge(dx, dy); balOwn(); }
-
-  const ok = inT && inS && S.overlapPct <= BAL_OVL && balQuiet(0.5*(tgtT + tgtS));
-  if(S.phase === 'balancing'){
-    balOk = ok ? balOk + 1 : 0;
-    if(balOk >= BAL_HOLD){
-      S.phase = 'balanced'; balBad = 0; S._measureOnce = true;
-      const sg = wallStress(wallF());
-      const off = Math.abs(W - H)/Math.max(W, H);
-      const capped = balScale < 0.999;
-      toast('Consolidated — pressure left ' + kPa(sg.x1).toFixed(2) + ', right ' +
-            kPa(sg.x2).toFixed(2) + ', lid ' + kPa(sg.y2).toFixed(2) + ' kPa · box ' +
-            (W*100).toFixed(1) + ' × ' + (H*100).toFixed(1) + ' cm' +
-            (off < 0.03 ? ' — square, so the forces match too'
-                        : ' — not square, so the forces differ by the length ratio' +
-                          (balShape.result === 'stopped' ? ' (the bed would not square)' : '')) +
-            (capped ? ' · σ₃ capped by contact overlap — raise kₙ' : '') + ' · holding',
-            capped ? 'warn' : 'ok');
-    }
+  let dv = SERVO.GAIN*(s3 - p)/(SERVO.K*kn), dd, cap;
+  if(SV.stage === 'loading'){
+    dd = 0.1*svRelaxed(W, H, e.x - e.y);
+    cap = SERVO.LOAD_RATE*dtF;
+  } else if(SV.stage === 'pass'){
+    /* brisk while most of the push is still to come, gentle as it arrives */
+    const left = Math.max(0, SV.pushAmt - Math.abs(a - SV.push0));
+    cap = Math.min(0.12, SERVO.PASS_RATE + 0.5*left)*dtF;
+    dd = SV.dir*cap;                                 // dir +1 narrows the box
   } else {
-    /* 'balanced' is a HOLD, not a stop: the bed goes on relaxing after the walls
-       come to rest, so the same loops keep running inside their dead-bands. If the
-       match is lost for a sustained stretch the label says so. */
-    balBad = ok ? 0 : balBad + 1;
-    if(balBad >= BAL_HOLD){ S.phase = 'balancing'; balOk = 0; }
+    dd = SERVO.GAIN*(-q)/(SERVO.GQ*kn);
+    cap = SERVO.HOLD_RATE*dtF*(1 + 3*clamp(Math.abs(e.x - e.y)/(0.2*s3), 0, 1));
   }
+  const slack = 1 - clamp(p/s3, 0, 1);              // an unloaded box may close fast
+  dv = clamp(dv, -(cap + slack*slack*0.2*dtF), cap + slack*slack*0.2*dtF);
+  dd = clamp(dd, -cap, cap);
+  svMove(0.5*(dv + dd)*W, 0.5*(dv - dd)*H);
+  keepBoxInView();
+
+  if(SV.stage === 'loading'){
+    if((Math.abs(0.5*(e.x + e.y) - s3) < 0.03*s3 && Math.abs(svRelaxed(W, H, e.x - e.y)) < 2*SERVO.SQ_TOL) ||
+       SV.f > 900) svStage('equalizing');
+    return;
+  }
+  if(SV.stage === 'pass'){
+    if(Math.abs(a - SV.push0) >= SV.pushAmt) svStage('equalizing');
+    return;
+  }
+
+  const within = k => Math.abs(e.L - s3) < k*s3 && Math.abs(e.R - s3) < k*s3 && Math.abs(e.T - s3) < k*s3;
+  /* the wall table shows a half-second average, which lags the servo's own; a
+     result announced while that lag still showed 17.89 would read as a miss */
+  const shown = k => { const v = wallStress(wallF());
+    return Math.abs(v.x1 - s3) < k*s3 && Math.abs(v.x2 - s3) < k*s3 && Math.abs(v.y2 - s3) < k*s3; };
+  if(S.phase === 'balancing'){
+    SV.ok = within(SERVO.TOL) && shown(SERVO.TOL) && svQuiet(s3) ? SV.ok + 1 : 0;
+    if(SV.ok < SERVO.HOLD) return;
+    if(!SV.declared && svNextPass(a)) return;
+    SV.declared = true;
+    S.phase = 'balanced'; SV.bad = 0; S._measureOnce = true;
+    svReport(W, H, a);
+  } else {
+    /* 'balanced' is a hold, not a stop: the same loops keep running. A grain
+       giving way can knock a wall past 1% for a moment, and the label should not
+       flicker for that, so it takes twice the band for two seconds to lose it. */
+    SV.bad = within(2*SERVO.TOL) ? 0 : SV.bad + 1;
+    if(SV.bad >= 2*SERVO.HOLD){ S.phase = 'balancing'; SV.ok = 0; }
+  }
+}
+
+/* At a moment of equal pressure, decide whether another squaring pass is worth
+   making, and start it if so.
+   A pass pushes the box past square and lets go. Pushed the SAME way the box last
+   sprang back, the bed is already giving way in that direction and keeps nearly
+   all of a push; measured, 0.6 to 1.0 of it. Pushed AGAINST that spring, the push
+   first travels back along it and only then reshapes anything, so it has to be the
+   error plus the whole of the last spring-back. Two passes in a row that fail to
+   beat the best shape so far by a fifth stop the passes — at σ₃ small next to the
+   bed's own weight, the bed slumps back from square however it is pushed. */
+function svNextPass(a1){
+  const a0 = SV.eq0 ? SV.eq0.a : a1;
+  if(SV.passes > 0 && SV.follow)
+    SV.keep = clamp(0.5*(SV.keep + (a1 - SV.push0)*(-SV.dir)/SV.pushAmt), 0.3, 1.5);
+  if(SV.passes > 0) SV.stalled = Math.abs(a1) >= 0.8*SV.best ? SV.stalled + 1 : 0;
+  SV.best = Math.min(SV.best, Math.abs(a1));
+  if(Math.abs(a1 - a0) > 0.001){ SV.lastRel = Math.sign(a1 - a0); SV.relMag = Math.abs(a1 - a0); }
+  if(Math.abs(a1) <= SERVO.SQUARE || SV.passes >= SERVO.PASSES || SV.stalled >= 2) return false;
+  const want = -Math.sign(a1);                     // the way ln(W/H) has to move
+  const follow = want === SV.lastRel;
+  const amt = follow ? 0.9*Math.abs(a1)/SV.keep : Math.abs(a1) + SV.relMag;
+  if(amt > SERVO.PUSH_MAX) return false;
+  SV.follow = follow;
+  SV.pushAmt = Math.max(0.002, amt);
+  SV.dir = -want;
+  SV.push0 = a1;
+  SV.passes++; SV.ok = 0;
+  svStage('pass');
+  return true;
+}
+
+function svReport(W, H, a){
+  const sg = wallStress(wallF());
+  const f2 = v => kPa(v).toFixed(2);
+  const Wt = totalWeight();
+  let t = 'Consolidated — left ' + f2(sg.x1) + ', right ' + f2(sg.x2) + ', lid ' + f2(sg.y2) +
+          ' kPa · floor ' + f2(sg.y1) + ' = lid + weight · box ' + (W*100).toFixed(2) + ' × ' + (H*100).toFixed(2) + ' cm';
+  let kind = 'ok';
+  const off = Math.abs(a);
+  if(off <= 0.01) t += ', square to ' + (100*off).toFixed(1) + '%';
+  else {
+    const weight = Wt/W/2;                            // the weight's share of the mean vertical stress
+    t += ', ' + (100*off).toFixed(1) + '% from square' +
+         (weight > 0.25*S.sig3*1000 ? ' — the squarest this bed holds at σ₃ = ' + (+S.sig3).toFixed(1) +
+                                      ' kPa: its own weight presses the sides harder than the lid' : '');
+    kind = 'warn';
+  }
+  if(SV.scale < 0.999){ t += ' · σ₃ capped at ' + f2(S.sig3*1000*SV.scale) + ' kPa by contact overlap — raise kₙ'; kind = 'warn'; }
+  else if(S.overlapPct > SERVO.OVL_WARN){ t += ' · contacts overlap ' + S.overlapPct.toFixed(1) + '% of a grain — raise kₙ for stiffer grains'; kind = 'warn'; }
+  toast(t + ' · holding', kind);
 }
 
 function settleTick(){
@@ -1910,7 +1956,7 @@ function resize(){
 }
 /* the pane can be laid out at zero size (hidden tab, collapsed panel) */
 const canvasHasArea = () => VW > 8 && VH > 8;
-function fitView(){
+function fitView(grow){
   /* The padding used to be a flat 26 px, so any viewport under 52 px wide or
      tall made (VW - 2*pad) negative and sc came out NEGATIVE. Every disk radius
      is r*sc, so the first arc() threw "radius provided is negative", and because
@@ -1920,7 +1966,10 @@ function fitView(){
      failure. Padding now scales with the viewport, and sc is clamped positive. */
   const w = Math.max(1e-6, BW()), h = Math.max(1e-6, BH());
   const pad = Math.max(2, Math.min(26, Math.min(VW, VH)*0.06));
-  sc = Math.max(1e-6, Math.min((VW-2*pad)/w, (VH-2*pad)/h));
+  /* `grow` frames the box that much larger on every side, about the same centre.
+     The Fit view button passes its click event here, which is not a number. */
+  const g = (typeof grow === 'number' && grow > 0) ? 1 + 2*grow : 1;
+  sc = Math.max(1e-6, Math.min((VW-2*pad)/(w*g), (VH-2*pad)/(h*g)));
   ox = (VW - w*sc)/2 - S.box.x1*sc;
   oy = (VH + h*sc)/2 + S.box.y1*sc;   // y flipped: world y up, screen y down
 }
@@ -2172,9 +2221,12 @@ function paintReadouts(){
     idle:'idle', filling:'depositing…', growing:'inflating particles…',
     settling:'settling…', settled:'settled', unloading:'unloading (g = 0)…',
     jammed:'JAMMED — bed reached the lid, '+S.toPlace+' balls never placed',
-    shaping:'squaring the bed before loading\u2026',
-    balancing:'consolidating to \u03c3\u2083\u2026',
-    balanced:'CONSOLIDATED \u2014 equal pressure on the left wall, the right wall and the lid (holding)'
+    shaping: SV.stage === 'touch' ? 'lowering the lid onto the bed\u2026'
+                                  : 'squaring the bed under a light lid\u2026',
+    balancing:'consolidating to \u03c3\u2083 \u2014 ' +
+              ({loading:'loading', equalizing:'equalizing the pressures',
+                pass:'squaring pass ' + SV.passes}[SV.stage] || 'working') + '\u2026',
+    balanced:'CONSOLIDATED \u2014 left wall, right wall and lid at \u03c3\u2083 (holding)'
   })[S.phase] || S.phase;
   /* Say it plainly while paused: the readouts are deliberately frozen, so a
      still phi is the expected behaviour rather than a stuck simulation. */
@@ -2922,7 +2974,7 @@ $('bBalance').addEventListener('click', ()=>{
   S.gActive = S.g;                 // an unloaded bed has no weight to balance against
   S.muActive = S.mu;
   balReset();
-  shapeStart();                    // square it if that can be done gently, then load
+  shapeStart();                    // lid down, square, load, equalize, then hold
 });
 $('bUnload').addEventListener('click', ()=>{ resumeFor('unloading'); unload(); });
 $('bClear').addEventListener('click', clearAll);
